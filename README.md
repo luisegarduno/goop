@@ -1,0 +1,2 @@
+# goop
+AI Coding Agent
