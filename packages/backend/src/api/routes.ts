@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db } from "../db/index";
-import { sessions, messages, messageParts } from "../db/schema";
+import { sessions, messages } from "../db/schema";
 import { eq, desc, asc } from "drizzle-orm";
 import { z } from "zod";
 
