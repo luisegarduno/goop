@@ -12,10 +12,20 @@ const sessionManager = new SessionManager();
 
 // Create session
 apiRoutes.post("/sessions", async (c) => {
+  const body = await c.req.json();
+
+  const { title, workingDirectory } = z
+    .object({
+      title: z.string().default("New Conversation"),
+      workingDirectory: z.string(),
+    })
+    .parse(body);
+
   const [session] = await db
     .insert(sessions)
     .values({
-      title: "New Conversation",
+      title,
+      workingDirectory,
     })
     .returning();
 
@@ -72,12 +82,22 @@ apiRoutes.post("/sessions/:id/messages", async (c) => {
   const sessionId = c.req.param("id");
   const body = await c.req.json();
 
-  const { content, workingDir } = z
+  const { content } = z
     .object({
       content: z.string(),
-      workingDir: z.string().default(process.cwd()),
     })
     .parse(body);
+
+  // Fetch session to get working directory
+  const session = await db.query.sessions.findFirst({
+    where: eq(sessions.id, sessionId),
+  });
+
+  if (!session) {
+    return c.json({ error: "Session not found" }, 404);
+  }
+
+  const workingDir = session.workingDirectory;
 
   // Create SSE stream
   const stream = new ReadableStream({
