@@ -84,7 +84,7 @@ export const useSessionStore = create<SessionStore>((set) => ({
           ? [
               ...state.messages,
               {
-                id: Date.now().toString(),
+                id: crypto.randomUUID(),
                 role: "assistant" as const,
                 parts,
               },
@@ -112,7 +112,7 @@ export const useSessionStore = create<SessionStore>((set) => ({
             ? [
                 ...state.messages,
                 {
-                  id: Date.now().toString(),
+                  id: crypto.randomUUID(),
                   role: "assistant",
                   parts,
                 },
