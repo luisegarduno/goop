@@ -97,7 +97,7 @@ When you first open the application, you'll be greeted with a **Session Setup Mo
 1. **Session Title**: Give your conversation a meaningful name (e.g., "React Refactoring", "API Design")
 2. **Working Directory**: Set the root directory where Claude can read files (defaults to your project directory)
 
-The working directory determines which files Claude can access when using the `read_file` tool. Claude can only read files within this directory for security.
+The working directory determines which files Claude can access when using the `read_file` tool. File operations are restricted to this directory to help maintain security boundaries.
 
 ### Basic Usage
 
