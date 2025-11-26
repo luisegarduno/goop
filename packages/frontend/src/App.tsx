@@ -1,13 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Terminal } from "./components/Terminal";
 import { InputBox } from "./components/InputBox";
+import { SetupModal } from "./components/SetupModal";
 import { useSSE } from "./hooks/useSSE";
 import { useSessionStore } from "./stores/session";
 import { createSession, getSession, getMessages } from "./api/client";
 import "./styles/index.css";
 
 function App() {
-  const { sessionId, setSessionId, addMessage, setMessages, clearSession } = useSessionStore();
+  const { sessionId, workingDirectory, setSessionId, setWorkingDirectory, addMessage, setMessages, clearSession } = useSessionStore();
+  const [showSetup, setShowSetup] = useState(false);
 
   useSSE(sessionId);
 
@@ -15,38 +17,47 @@ function App() {
     // Try to restore session from localStorage
     const restoreSession = async () => {
       const savedSessionId = localStorage.getItem("goop_session_id");
+      const savedWorkingDir = localStorage.getItem("goop_working_directory");
 
-      if (savedSessionId) {
+      if (savedSessionId && savedWorkingDir) {
         try {
           // Verify session exists on backend
-          await getSession(savedSessionId);
+          const session = await getSession(savedSessionId);
 
           // Load messages for this session
           const messages = await getMessages(savedSessionId);
 
           // Restore session
           setSessionId(savedSessionId);
+          setWorkingDirectory(savedWorkingDir);
           setMessages(messages);
 
           console.log(`Restored session ${savedSessionId} with ${messages.length} messages`);
+          console.log(`Working directory: ${session.workingDirectory || savedWorkingDir}`);
         } catch (error) {
           console.error("Failed to restore session:", error);
-          // Session doesn't exist or error occurred, create new one
+          // Session doesn't exist or error occurred, show setup
           clearSession();
-          const session = await createSession();
-          setSessionId(session.id);
-          console.log(`Created new session ${session.id}`);
+          setShowSetup(true);
         }
       } else {
-        // No saved session, create new one
-        const session = await createSession();
-        setSessionId(session.id);
-        console.log(`Created new session ${session.id}`);
+        // No saved session, show setup
+        setShowSetup(true);
       }
     };
 
     restoreSession();
   }, []);
+
+  const handleSetupComplete = async (dir: string, title: string) => {
+    setWorkingDirectory(dir);
+    setShowSetup(false);
+
+    // Create new session with working directory and title
+    const session = await createSession(dir, title);
+    setSessionId(session.id);
+    console.log(`Created new session "${title}" (${session.id}) with working directory: ${dir}`);
+  };
 
   const handleSend = async (message: string) => {
     if (!sessionId) return;
@@ -59,7 +70,7 @@ function App() {
     });
 
     // Send to backend and stream the response
-    const { setStreaming, appendText, addToolUse, addToolResult, finishStreaming } = useSessionStore.getState();
+    const { setStreaming, appendText, addToolUse, addToolResult, startNewMessage, finishStreaming } = useSessionStore.getState();
 
     try {
       const response = await fetch(`http://localhost:3001/api/sessions/${sessionId}/messages`, {
@@ -79,6 +90,7 @@ function App() {
       setStreaming(true);
 
       let buffer = '';
+      let messageCount = 0; // Track how many message.start events we've received
 
       while (true) {
         const { done, value } = await reader.read();
@@ -96,7 +108,11 @@ function App() {
               const data = JSON.parse(line.substring(5).trim());
 
               if (data.type === 'message.start') {
-                // Message started
+                messageCount++;
+                // If this is not the first message (i.e., after tool execution), start a new message
+                if (messageCount > 1) {
+                  startNewMessage();
+                }
               } else if (data.type === 'message.delta') {
                 appendText(data.text);
               } else if (data.type === 'message.done') {
@@ -120,6 +136,7 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col">
+      {showSetup && <SetupModal onComplete={handleSetupComplete} />}
       <div className="flex-1 overflow-hidden">
         <Terminal />
       </div>
