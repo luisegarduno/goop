@@ -49,8 +49,9 @@ function App() {
     };
 
     restoreSession();
-    // Zustand store actions are stable references; including them for clarity and future-proofing.
-  }, [setSessionId, setWorkingDirectory, setMessages, clearSession]);
+    // Zustand store actions are stable references; including them is optional but not required.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSetupComplete = async (dir: string, title: string) => {
     setShowSetup(false);
