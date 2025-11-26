@@ -27,9 +27,9 @@ function App() {
           // Load messages for this session
           const messages = await getMessages(savedSessionId);
 
-          // Restore session - use backend's working directory as source of truth
+          // Restore session
           setSessionId(savedSessionId);
-          setWorkingDirectory(session.workingDirectory);
+          setWorkingDirectory(savedWorkingDir);
           setMessages(messages);
 
           if (import.meta.env.DEV) {
@@ -49,25 +49,24 @@ function App() {
     };
 
     restoreSession();
-    // Zustand store actions are stable references; including them is optional but not required.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSetupComplete = async (dir: string, title: string) => {
+    setWorkingDirectory(dir);
     setShowSetup(false);
 
     try {
       // Create new session with working directory and title
       const session = await createSession(dir, title);
       setSessionId(session.id);
-      setWorkingDirectory(dir); // Set after successful session creation
       if (import.meta.env.DEV) {
         console.log(`Created new session "${title}" (${session.id}) with working directory: ${dir}`);
       }
     } catch (error) {
       console.error("Failed to create session:", error);
-      clearSession(); // Clear both session and working directory
       setShowSetup(true); // Show modal again
+      // Optionally, show a user-friendly error message here
     }
   };
 

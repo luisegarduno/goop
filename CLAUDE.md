@@ -402,8 +402,8 @@ The backend exposes the following REST and SSE endpoints:
 - `POST /api/sessions` - Create new session
   - Request body: `{ title?: string, workingDirectory?: string }`
   - Returns session object with id, title, workingDirectory, createdAt, updatedAt
-  - Default title: "New Conversation"
-  - workingDirectory is required
+  - Default title: "New Session"
+  - Default workingDirectory: current working directory
 - `GET /api/sessions` - List all sessions (ordered by updatedAt DESC)
 - `GET /api/sessions/:id` - Get specific session by ID
 - `GET /api/sessions/:id/messages` - Get all messages for a session (with parts)
