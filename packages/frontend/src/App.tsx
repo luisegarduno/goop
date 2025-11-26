@@ -65,7 +65,6 @@ function App() {
       }
     } catch (error) {
       console.error("Failed to create session:", error);
-      clearSession(); // This will clear both session and working directory
       clearSession(); // Clear both session and working directory
       setShowSetup(true); // Show modal again
     }
