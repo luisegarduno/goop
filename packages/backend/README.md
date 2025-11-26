@@ -143,16 +143,10 @@ bun run typecheck    # Type-check without emitting files
 POST /api/sessions
 Content-Type: application/json
 
-{
-  "title": "New Conversation",
-  "workingDirectory": "/path/to/project"
-}
-
 Response:
 {
   "id": "uuid",
   "title": "New Conversation",
-  "workingDirectory": "/path/to/project",
   "createdAt": "2025-11-25T...",
   "updatedAt": "2025-11-25T..."
 }
@@ -166,7 +160,6 @@ Response:
 {
   "id": "uuid",
   "title": "New Conversation",
-  "workingDirectory": "/path/to/project",
   "createdAt": "2025-11-25T...",
   "updatedAt": "2025-11-25T..."
 }
@@ -181,7 +174,6 @@ Response:
   {
     "id": "uuid",
     "title": "New Conversation",
-    "workingDirectory": "/path/to/project",
     "createdAt": "2025-11-25T...",
     "updatedAt": "2025-11-25T..."
   }
@@ -220,7 +212,8 @@ POST /api/sessions/:id/messages
 Content-Type: application/json
 
 {
-  "content": "Can you read the README.md file?"
+  "content": "Can you read the README.md file?",
+  "workingDir": "/path/to/project"
 }
 
 Response:
@@ -238,17 +231,12 @@ data: {"type":"tool.start","toolName":"read_file","toolId":"toolu_123","input":{
 event: tool.result
 data: {"type":"tool.result","toolId":"toolu_123","result":"# goop..."}
 
-event: message.start
-data: {"type":"message.start","messageId":"uuid"}
-
 event: message.delta
 data: {"type":"message.delta","text":"Here's the content..."}
 
 event: message.done
 data: {"type":"message.done","messageId":"uuid"}
 ```
-
-**Note:** The `workingDirectory` is automatically fetched from the session record and used for tool execution context. Tool results trigger a new `message.start` event before the AI continues with its response.
 
 #### SSE Events Connection
 ```http
@@ -329,28 +317,19 @@ The `SessionManager` orchestrates the conversation flow between the AI provider,
 
 **Responsibilities:**
 - Store user messages in database
-- Load conversation history with complete content blocks (text + tool_use)
-- Fetch session's working directory for tool execution context
+- Load conversation history
 - Stream AI responses via provider
 - Execute tools when requested by AI
 - Store assistant messages and tool results
-- Emit proper SSE events after tool execution
 - Update session timestamps
 
 **Flow:**
 1. User sends message → stored in database
-2. Load conversation history from database (formatted with complete content blocks)
-3. Fetch session's working directory for tool context
-4. Stream request to AI provider with tools
-5. On text chunks → yield SSE events and store in database
-6. On tool use → execute tool, store result, emit message.start, continue conversation
-7. Update session timestamp when complete
-
-**Recent Improvements:**
-- Message history now includes complete content blocks combining text and tool_use parts
-- Working directory is retrieved from session record instead of request body
-- Tool execution triggers a new `message.start` event before AI continues
-- Enhanced error logging in provider streaming
+2. Load conversation history from database
+3. Stream request to AI provider with tools
+4. On text chunks → yield SSE events and store in database
+5. On tool use → execute tool, store result, continue conversation
+6. Update session timestamp when complete
 
 ### SSE Streaming
 
@@ -415,7 +394,6 @@ The database uses three tables with UUID primary keys and cascade delete relatio
 #### sessions
 - `id` (uuid, primary key)
 - `title` (text)
-- `working_directory` (text, not null) - Base directory for tool operations
 - `created_at` (timestamp)
 - `updated_at` (timestamp)
 
@@ -452,10 +430,6 @@ bun run db:studio
 ```
 
 Opens Drizzle Studio at `https://local.drizzle.studio`.
-
-**Migration History:**
-- `0000_curvy_network.sql` - Initial schema (sessions, messages, message_parts)
-- `0001_premium_vapor.sql` - Added `working_directory` column to sessions table with default value for existing rows
 
 ### Relations
 
@@ -604,15 +578,13 @@ bun test
 Test end-to-end flows with curl:
 
 ```bash
-# Create session with working directory
-SESSION=$(curl -X POST http://localhost:3001/api/sessions \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Test Session","workingDirectory":"'"$(pwd)"'"}' | jq -r '.id')
+# Create session
+SESSION=$(curl -X POST http://localhost:3001/api/sessions | jq -r '.id')
 
-# Send message (workingDirectory is fetched from session)
+# Send message
 curl -X POST http://localhost:3001/api/sessions/$SESSION/messages \
   -H "Content-Type: application/json" \
-  -d '{"content":"Hello!"}'
+  -d '{"content":"Hello!","workingDir":"'"$(pwd)"'"}'
 
 # Get messages
 curl http://localhost:3001/api/sessions/$SESSION/messages
