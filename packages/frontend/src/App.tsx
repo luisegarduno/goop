@@ -8,7 +8,7 @@ import { createSession, getSession, getMessages } from "./api/client";
 import "./styles/index.css";
 
 function App() {
-  const { sessionId, setSessionId, setWorkingDirectory, addMessage, setMessages, clearSession } = useSessionStore();
+  const { sessionId, workingDirectory, setSessionId, setWorkingDirectory, addMessage, setMessages, clearSession } = useSessionStore();
   const [showSetup, setShowSetup] = useState(false);
 
   useSSE(sessionId);
@@ -47,23 +47,16 @@ function App() {
     };
 
     restoreSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSetupComplete = async (dir: string, title: string) => {
     setWorkingDirectory(dir);
     setShowSetup(false);
 
-    try {
-      // Create new session with working directory and title
-      const session = await createSession(dir, title);
-      setSessionId(session.id);
-      console.log(`Created new session "${title}" (${session.id}) with working directory: ${dir}`);
-    } catch (error) {
-      console.error("Failed to create session:", error);
-      setShowSetup(true); // Show modal again
-      // Optionally, show a user-friendly error message here
-    }
+    // Create new session with working directory and title
+    const session = await createSession(dir, title);
+    setSessionId(session.id);
+    console.log(`Created new session "${title}" (${session.id}) with working directory: ${dir}`);
   };
 
   const handleSend = async (message: string) => {

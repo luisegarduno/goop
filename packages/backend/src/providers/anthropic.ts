@@ -24,17 +24,12 @@ export class AnthropicProvider implements Provider {
       input_schema: zodToJsonSchema(tool.input_schema) as any,
     }));
 
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        "[AnthropicProvider] Starting stream with",
-        messages.length,
-        "messages"
-      );
-      console.log(
-        "[AnthropicProvider] Messages:",
-        JSON.stringify(messages, null, 2)
-      );
-    }
+    console.log(
+      "[AnthropicProvider] Starting stream with",
+      messages.length,
+      "messages"
+    );
+    console.log("[AnthropicProvider] Messages:", JSON.stringify(messages, null, 2));
 
     try {
       const stream = await this.client.messages.stream({

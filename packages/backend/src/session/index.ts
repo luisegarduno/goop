@@ -56,10 +56,7 @@ export class SessionManager {
     let partOrder = 0;
     const toolDefinitions = getToolDefinitions();
     let accumulatedText = "";
-    type MessageContent =
-      | { type: "text"; text: string }
-      | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> };
-    let currentMessageContent: MessageContent[] = []; // Track all content blocks in current message
+    let currentMessageContent: any[] = []; // Track all content blocks in current message
 
     // Helper function to save accumulated text
     const saveAccumulatedText = async () => {
