@@ -2,6 +2,18 @@
 
 A minimal AI coding agent with web UI, built with Bun, TypeScript, React, and PostgreSQL.
 
+<table>
+   <tr>
+      <td width="50%">
+         <img width="100%" alt="goop_SessionSetup" src="https://github.com/user-attachments/assets/4928749d-8c1b-4eb4-9cb2-ca3deb934a8a" />
+      </td>
+      <td width="50%">
+         <img width="100%" alt="goop_conversation" src="https://github.com/user-attachments/assets/9d9f8dc6-a485-4611-8fd0-5903deab374a" />
+      </td>
+   </tr>
+</table>
+
+
 ## Features (Phase 1)
 
 - 🤖 Anthropic Claude integration
