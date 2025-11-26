@@ -1,8 +1,13 @@
 const API_BASE = "http://localhost:3001/api";
 
-export async function createSession(): Promise<{ id: string }> {
+export async function createSession(
+  workingDirectory: string,
+  title: string = "New Conversation"
+): Promise<{ id: string; workingDirectory: string }> {
   const res = await fetch(`${API_BASE}/sessions`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, workingDirectory }),
   });
   return res.json();
 }
