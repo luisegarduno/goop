@@ -56,6 +56,7 @@ export class SessionManager {
     let partOrder = 0;
     const toolDefinitions = getToolDefinitions();
     let accumulatedText = "";
+    let currentMessageContent: any[] = []; // Track all content blocks in current message
 
     // Helper function to save accumulated text
     const saveAccumulatedText = async () => {
@@ -66,6 +67,8 @@ export class SessionManager {
           content: { text: accumulatedText },
           order: partOrder++,
         });
+        // Add to current message content for history
+        currentMessageContent.push({ type: "text", text: accumulatedText });
         accumulatedText = "";
       }
     };
@@ -91,6 +94,9 @@ export class SessionManager {
           order: partOrder++,
         });
 
+        // Add to current message content for history
+        currentMessageContent.push({ type: "tool_use", id, name, input });
+
         // Execute tool
         try {
           const result = await executeTool(name, input, { workingDir });
@@ -115,10 +121,10 @@ export class SessionManager {
             order: 0,
           });
 
-          // Continue conversation with tool result
+          // Continue conversation with tool result - include ALL content from assistant message
           history.push({
             role: "assistant",
-            content: [{ type: "tool_use", id, name, input }],
+            content: currentMessageContent.length > 0 ? currentMessageContent : [{ type: "tool_use", id, name, input }],
           });
           history.push({
             role: "user",
@@ -139,6 +145,10 @@ export class SessionManager {
 
           currentAssistantMessage = nextAssistantMessage;
           partOrder = 0;
+          currentMessageContent = []; // Reset content for new message
+
+          // Notify frontend that a new assistant message is starting
+          yield { type: "message.start", messageId: nextAssistantMessage.id };
 
           // Get next response from AI
           for await (const nextEvent of this.provider.stream(
