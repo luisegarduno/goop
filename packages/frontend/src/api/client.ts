@@ -11,8 +11,14 @@ export async function createSession(
   });
 
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || `Failed to create session: ${res.status}`);
+    let errorMessage = `Failed to create session: ${res.status}`;
+    try {
+      const error = await res.json();
+      errorMessage = error.error || errorMessage;
+    } catch {
+      // If not JSON, use the status code message
+    }
+    throw new Error(errorMessage);
   }
 
   return res.json();
