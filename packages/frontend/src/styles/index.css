@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme {
+  --color-terminal-bg: #1a1a1a;
+  --color-terminal-text: #e0e0e0;
+  --color-terminal-user: #4fc3f7;
+  --color-terminal-assistant: #81c784;
+  --color-terminal-tool: #ffb74d;
+
+  --font-family-mono: Monaco, Menlo, Consolas, monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-terminal-bg text-terminal-text font-mono;
+  }
+}
