@@ -90,11 +90,20 @@ The project is structured as a Bun workspace monorepo with separate frontend and
 
 Once both servers are running, you can access the terminal interface at **http://localhost:3000**.
 
+### Initial Setup
+
+When you first open the application, you'll be greeted with a **Session Setup Modal** where you can configure:
+
+1. **Session Title**: Give your conversation a meaningful name (e.g., "React Refactoring", "API Design")
+2. **Working Directory**: Set the root directory where Claude can read files (defaults to your project directory)
+
+The working directory determines which files Claude can access when using the `read_file` tool. Claude can only read files within this directory for security.
+
 ### Basic Usage
 
-1. **Start a conversation**: Type a message in the input box at the bottom and press Enter or click "Send"
+1. **Start a conversation**: After setting up your session, type a message in the input box at the bottom and press Enter or click "Send"
 2. **Watch the streaming response**: Claude's response will appear in real-time as it's generated
-3. **Ask Claude to read files**: Try asking "Can you read the README.md file?" or "What's in the spec.md file?"
+3. **Ask Claude to read files**: Try asking "Can you read the README.md file?" or "What's in the spec.md file?" (files must be within your configured working directory)
 4. **See tool usage**: When Claude uses the `read_file` tool, you'll see a visual indicator with the tool name
 5. **Continue the conversation**: All messages persist in the database, maintaining full conversation context
 
@@ -306,12 +315,13 @@ The application uses PostgreSQL with three core tables managed by Drizzle ORM:
 
 Stores conversation sessions with the AI agent.
 
-| Column       | Type      | Description                  |
-| ------------ | --------- | ---------------------------- |
-| `id`         | uuid      | Primary key (auto-generated) |
-| `title`      | text      | Session title/name           |
-| `created_at` | timestamp | Creation timestamp (auto)    |
-| `updated_at` | timestamp | Last update timestamp (auto) |
+| Column              | Type      | Description                                        |
+| ------------------- | --------- | -------------------------------------------------- |
+| `id`                | uuid      | Primary key (auto-generated)                       |
+| `title`             | text      | Session title/name                                 |
+| `working_directory` | text      | Root directory for file operations (security boundary) |
+| `created_at`        | timestamp | Creation timestamp (auto)                          |
+| `updated_at`        | timestamp | Last update timestamp (auto)                       |
 
 ### `messages`
 
@@ -416,9 +426,11 @@ The application is fully functional with the following capabilities:
 1. **AI Conversations**: Chat with Claude through a terminal-like web interface
 2. **Real-time Streaming**: See Claude's responses appear token by token as they're generated
 3. **Tool System**: Claude can read files from your local filesystem using the `read_file` tool
-4. **Session Persistence**: All conversations are saved to PostgreSQL and survive page refreshes
-5. **Type Safety**: Full TypeScript coverage with Zod validation throughout the stack
-6. **Developer Experience**: Hot reload for both frontend and backend during development
+4. **Working Directory Security**: Each session has a configured working directory that constrains where Claude can read files
+5. **Session Setup Modal**: First-time users configure session title and working directory through an intuitive modal interface
+6. **Session Persistence**: All conversations are saved to PostgreSQL and survive page refreshes
+7. **Type Safety**: Full TypeScript coverage with Zod validation throughout the stack
+8. **Developer Experience**: Hot reload for both frontend and backend during development
 
 ## Next Steps
 
