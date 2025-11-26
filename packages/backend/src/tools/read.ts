@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Tool, ToolContext } from "./base";
 import { readFile } from "fs/promises";
-import { resolve } from "path";
+import { resolve, join } from "path";
 
 export const ReadFileInputSchema = z.object({
   path: z.string().describe("The file path to read"),
