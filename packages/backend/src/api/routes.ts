@@ -22,6 +22,7 @@ apiRoutes.post("/sessions", async (c) => {
     .parse(body);
 
   // Validate working directory exists and is accessible
+  // Only check read access as current tools are read-only
   const { access, constants } = await import("fs/promises");
   try {
     await access(workingDirectory, constants.R_OK);
