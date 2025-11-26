@@ -152,13 +152,12 @@ Modal dialog for configuring new sessions before starting a conversation:
 
 **Props:**
 
-- `onSetupComplete`: Callback fired after successful session creation with sessionId and workingDir
+- `onComplete`: Callback fired with workingDirectory and title for session creation
 
 **Key Features:**
 
 - Validates input before submission
-- Provides sensible defaults (title: "New Session", workingDir: ".")
-- Disables submit during session creation
+- Provides sensible defaults (title: "New Conversation", workingDir: ".")
 - Terminal-styled UI consistent with app theme
 
 ### App.tsx

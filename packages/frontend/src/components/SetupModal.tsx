@@ -5,9 +5,7 @@ interface SetupModalProps {
 }
 
 export function SetupModal({ onComplete }: SetupModalProps) {
-  const [workingDirectory, setWorkingDirectory] = useState(
-    typeof window !== "undefined" ? window.location.pathname : "/home"
-  );
+  const [workingDirectory, setWorkingDirectory] = useState(".");
   const [title, setTitle] = useState("New Conversation");
 
   const handleSubmit = (e: React.FormEvent) => {
