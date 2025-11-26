@@ -11,7 +11,6 @@ import { relations } from "drizzle-orm";
 export const sessions = pgTable("sessions", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: text("title").notNull(),
-  workingDirectory: text("working_directory").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
