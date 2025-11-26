@@ -1,147 +1,49 @@
-# goop
+# GOOP Agent
 
-An AI Coding Agent built with modern web technologies. goop provides an intelligent assistant for code analysis, planning, and development tasks through a clean web interface, powered by Claude API and built with Bun, React, and PostgreSQL.
+A minimal AI coding agent with web UI, built with Bun, TypeScript, React, and PostgreSQL.
 
-## Project Overview
+## Features (Phase 1)
 
-goop is designed to be a lightweight, extensible AI coding agent that can:
-
-- Answer questions about your codebase (Ask mode)
-- Analyze and create implementation plans (Plan mode)
-- Assist with development tasks (Build mode)
-
-The project is structured as a Bun workspace monorepo with separate frontend and backend packages, featuring:
-
-- **Real-time AI streaming** via Server-Sent Events (SSE)
-- **Tool system** with file reading capabilities (extensible for more tools)
-- **Session management** with PostgreSQL persistence
-- **Terminal-like web interface** for seamless interaction
-- **Anthropic Claude integration** with support for tool calling
-- **Type-safe architecture** with Zod validation and Drizzle ORM
+- 🤖 Anthropic Claude integration
+- 📁 File reading tool
+- 💬 Real-time streaming responses
+- 🗄️ PostgreSQL conversation persistence
+- 🎨 Terminal-like web UI
 
 ## Prerequisites
 
 - [Bun](https://bun.sh) >= 1.0
-- [Docker](https://www.docker.com) & Docker Compose
-- [Anthropic API key](https://console.anthropic.com/)
+- [Docker](https://docker.com) & Docker Compose
+- Anthropic API key
 
 ## Quick Start
 
-1. **Clone the repository**
+1. Clone and setup
 
    ```bash
    git clone https://github.com/luisegarduno/goop.git
    cd goop
+   chmod +x setup.sh
+   ./setup.sh
    ```
 
-2. **Install dependencies**
-
-   ```bash
-   bun install
-   ```
-
-3. **Configure environment variables**<br/>
-   Copy `.env.example` to `.env` and add your Anthropic API key:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   Edit `.env` and set your Anthropic API key:
+2. Add Anthropic API key to `.env`
 
    ```env
    ANTHROPIC_API_KEY=sk-ant-...
    ```
 
-   Other variables are pre-configured for local development.
+3. Run monorepo
 
-4. **Start PostgreSQL database**
-
-   ```bash
-   docker compose up -d
-   ```
-
-   Verify the database is running:
-
-   ```bash
-   docker ps | grep goop-agent-postgres
-   ```
-
-   <br/>
-
-5. **Run database migrations**
-
-   ```bash
-   cd packages/backend
-   bun run db:generate
-   bun run db:migrate
-   cd ../..
-   ```
-
-   You should see three tables: `sessions`, `messages`, and `message_parts`.
-
-6. **Start development servers**<br/>
    ```bash
    bun run dev
    ```
-   This starts both the backend API server (http://localhost:3001) and frontend dev server (http://localhost:3000).
 
-## Usage
+   This will start both the backend and frontend servers.
 
-Once both servers are running, you can access the terminal interface at **http://localhost:3000**.
+   The backend will start on `http://localhost:3001` and the frontend will start on `http://localhost:3000`.
 
-### Initial Setup
-
-When you first open the application, you'll be greeted with a **Session Setup Modal** where you can configure:
-
-1. **Session Title**: Give your conversation a meaningful name (e.g., "React Refactoring", "API Design")
-2. **Working Directory**: Set the root directory where Claude can read files (defaults to your project directory)
-
-The working directory determines which files Claude can access when using the `read_file` tool. File operations are restricted to this directory to help maintain security boundaries.
-
-### Basic Usage
-
-1. **Start a conversation**: After setting up your session, type a message in the input box at the bottom and press Enter or click "Send"
-2. **Watch the streaming response**: Claude's response will appear in real-time as it's generated
-3. **Ask Claude to read files**: Try asking "Can you read the README.md file?" or "What's in the spec.md file?" (files must be within your configured working directory)
-4. **See tool usage**: When Claude uses the `read_file` tool, you'll see a visual indicator with the tool name
-5. **Continue the conversation**: All messages persist in the database, maintaining full conversation context
-
-### Example Interactions
-
-**Ask about files:**
-
-```
-You: Can you read the package.json file and tell me what dependencies are installed?
-```
-
-**Request code analysis:**
-
-```
-You: Please read the src/db/schema.ts file and explain the database schema
-```
-
-**Multi-turn conversations:**
-
-```
-You: What files are in the packages/backend/src directory?
-Assistant: [Uses read_file tool to explore]
-You: Great, now can you read the providers/anthropic.ts file?
-```
-
-### Features in Action
-
-- **Real-time Streaming**: Watch Claude "type" responses as they're generated, creating a natural conversation flow
-- **Tool Visualization**: See when Claude uses tools with clear indicators showing tool name and status
-- **Persistent Sessions**: Your conversations survive page refreshes and browser restarts
-- **Terminal Aesthetic**: Dark theme with monospace font for a classic terminal experience
-- **Type-safe Communication**: All data validated with Zod schemas throughout the stack
-
-### Keyboard Shortcuts
-
-- **Enter**: Send message (when input is focused)
-- **Escape**: Focus the input box (coming soon)
-- **Ctrl/Cmd + K**: Clear current session (coming soon)
+   The frontend will open automatically in your browser.
 
 ## Project Structure
 
@@ -241,278 +143,26 @@ goop/
 - **ESLint** - Code linting
 - **TypeScript** ^5.3.0 - Type checking
 
-## Development Commands
+## Coding Agents
 
-### Monorepo Commands (run from root)
+Within this project, ClaudeCode has been used to generate the code for the backend and frontend.
+Custom commands & agents have been used to help with the development of the project.
 
-```bash
-bun run dev          # Start all dev servers in parallel
-bun run build        # Build all packages
-bun run test         # Run tests for all packages
-bun run typecheck    # Type-check all packages
-```
+Primarily, the commands I used were [create_plan.md](.claude/commands/create_plan.md), [implement_plan.md](.claude/commands/implement_plan.md), [research_codebase.md](.claude/commands/research_codebase.md).
 
-### Backend Commands
-
-```bash
-cd packages/backend
-
-# Development
-bun run dev          # Start backend with hot reload (watches src/index.ts)
-bun run build        # Build for production (outputs to dist/)
-bun run start        # Run production build
-bun run typecheck    # Type-check without emitting files
-
-# Database
-bun run db:generate  # Generate migration files from schema changes
-bun run db:migrate   # Apply pending migrations to database
-
-# Testing
-bun test             # Run backend tests with Bun test runner
-```
-
-### Frontend Commands
-
-```bash
-cd packages/frontend
-
-# Development
-bun run dev          # Start Vite dev server (http://localhost:3000)
-bun run build        # Build for production (tsc + vite build)
-bun run preview      # Preview production build locally
-
-# Quality
-bun run lint         # Run ESLint
-```
-
-### Database Management
-
-```bash
-# View database tables
-docker exec -it goop-agent-postgres psql -U goop -d db -c "\dt"
-
-# View table schema
-docker exec -it goop-agent-postgres psql -U goop -d db -c "\d sessions"
-
-# Connect to PostgreSQL shell
-docker exec -it goop-agent-postgres psql -U goop -d db
-
-# View database logs
-docker logs goop-agent-postgres
-
-# Stop database
-docker-compose down
-
-# Stop and remove all data
-docker-compose down -v
-```
-
-## Database Schema
-
-The application uses PostgreSQL with three core tables managed by Drizzle ORM:
-
-### `sessions`
-
-Stores conversation sessions with the AI agent.
-
-| Column              | Type      | Description                                        |
-| ------------------- | --------- | -------------------------------------------------- |
-| `id`                | uuid      | Primary key (auto-generated)                       |
-| `title`             | text      | Session title/name                                 |
-| `working_directory` | text      | Root directory for file operations (security boundary) |
-| `created_at`        | timestamp | Creation timestamp (auto)                          |
-| `updated_at`        | timestamp | Last update timestamp (auto)                       |
-
-### `messages`
-
-Stores individual messages within sessions (user or assistant).
-
-| Column       | Type      | Description                              |
-| ------------ | --------- | ---------------------------------------- |
-| `id`         | uuid      | Primary key (auto-generated)             |
-| `session_id` | uuid      | Foreign key to sessions (cascade delete) |
-| `role`       | text      | Message role: 'user' or 'assistant'      |
-| `created_at` | timestamp | Creation timestamp (auto)                |
-
-**Relationship:** `sessions` 1:N `messages`
-
-### `message_parts`
-
-Stores individual parts of a message (text, tool use, tool results).
-
-| Column       | Type    | Description                                     |
-| ------------ | ------- | ----------------------------------------------- |
-| `id`         | uuid    | Primary key (auto-generated)                    |
-| `message_id` | uuid    | Foreign key to messages (cascade delete)        |
-| `type`       | text    | Part type: 'text', 'tool_use', or 'tool_result' |
-| `content`    | jsonb   | Part content (structured as JSON)               |
-| `order`      | integer | Part order within message                       |
-
-**Relationship:** `messages` 1:N `message_parts`
-
-The schema uses cascade deletion to maintain referential integrity - deleting a session removes all associated messages and message parts.
-
-## Current Status
-
-### Phase 1: Foundation - COMPLETE ✅
-
-- Monorepo setup with Bun workspaces
-- Backend package with Hono web framework
-- Frontend package with React + Vite + TailwindCSS
-- PostgreSQL database in Docker
-- TypeScript configuration across all packages
-- Environment variable management with Zod validation
-
-### Phase 2: Database Layer - COMPLETE ✅
-
-- Drizzle ORM integration with PostgreSQL
-- Database schema design (sessions, messages, message_parts)
-- Migration system with Drizzle Kit
-- Zod validation schemas for message types
-- Configuration management with type-safe schemas
-- Database connection and client setup with relations
-
-### Phase 3: Backend Core - COMPLETE ✅
-
-- Hono HTTP server with middleware (CORS, logging)
-- REST API routes for sessions and messages
-- Health check endpoint
-- Error handling and validation
-- Database queries with Drizzle relations
-- Type-safe request/response handling
-
-### Phase 4: Provider Integration - COMPLETE ✅
-
-- Abstract provider interface for multiple AI providers
-- Anthropic Claude API integration with streaming
-- Tool system infrastructure (base interface, registry)
-- File reading tool with security constraints
-- Zod schema to JSON schema conversion for tool definitions
-- Real-time streaming event handling
-
-### Phase 5: Session Management - COMPLETE ✅
-
-- Session manager for conversation orchestration
-- Tool execution with context management
-- Conversation history loading and management
-- Server-Sent Events (SSE) streaming implementation
-- Message and message parts persistence
-- Real-time event broadcasting (text deltas, tool usage, completion)
-
-### Phase 6: Frontend UI - COMPLETE ✅
-
-- Terminal-like React interface with dark theme
-- Real-time message streaming display
-- Zustand state management for sessions
-- SSE connection handling with custom hooks
-- Message input component with streaming state
-- Tool usage visualization in terminal
-- Responsive terminal UI with proper styling
-
-### Phase 7: Integration & Testing - COMPLETE ✅
-
-- End-to-end integration of all components
-- SSE streaming between frontend and backend
-- Tool execution flow verification
-- Session persistence across page refreshes
-- Error handling throughout the stack
-- Setup script for quick onboarding
-- Complete documentation
-
-## What's Working
-
-The application is fully functional with the following capabilities:
-
-1. **AI Conversations**: Chat with Claude through a terminal-like web interface
-2. **Real-time Streaming**: See Claude's responses appear token by token as they're generated
-3. **Tool System**: Claude can read files from your local filesystem using the `read_file` tool
-4. **Working Directory Security**: Each session has a configured working directory that constrains where Claude can read files
-5. **Session Setup Modal**: First-time users configure session title and working directory through an intuitive modal interface
-6. **Session Persistence**: All conversations are saved to PostgreSQL and survive page refreshes
-7. **Type Safety**: Full TypeScript coverage with Zod validation throughout the stack
-8. **Developer Experience**: Hot reload for both frontend and backend during development
-
-## Next Steps
-
-While the foundation is complete, future enhancements may include:
-
-- Additional AI providers (OpenAI, Google Gemini, local models)
-- More tools (write_file, edit_file, bash, grep, glob)
-- Approval system for dangerous operations
-- Mode system (Ask/Plan/Build) with different permission levels
-- Comprehensive test coverage
-- Production deployment configuration
-
-See `spec.md` for the complete roadmap and implementation details.
+- [create_plan.md](.claude/commands/create_plan.md) was used to create the implementation plan. I used [spec.md](spec.md) to guide the creation of the plan.
+- [implement_plan.md](.claude/commands/implement_plan.md) was used to implement the plan.
+- [research_codebase.md](.claude/commands/research_codebase.md) was used to research the codebase.
 
 ## Roadmap
 
-### Foundation Complete
+- [x] Phase 1: Foundation (current)
+- [ ] Phase 2: Additional providers (OpenAI, Google)
+- [ ] Phase 3: More tools (write, edit, bash, grep, glob)
+- [ ] Phase 4: Approval system
+- [ ] Phase 5: Mode system (Ask/Plan/Build)
+- [ ] Phase 6: Testing & CI/CD
 
-1. ✅ **Phase 1: Foundation** - Project setup, monorepo structure, PostgreSQL
-2. ✅ **Phase 2: Database Layer** - Schema design, migrations, Drizzle ORM
-3. ✅ **Phase 3: Backend Core** - Hono server, REST API, routing
-4. ✅ **Phase 4: Provider Integration** - Anthropic Claude, tool system
-5. ✅ **Phase 5: Session Management** - Conversation orchestration, SSE streaming
-6. ✅ **Phase 6: Frontend UI** - React terminal interface, real-time display
-7. ✅ **Phase 7: Integration & Testing** - End-to-end verification, setup automation
+## License
 
-### Future Enhancements
-
-8. **Additional Providers** - OpenAI GPT, Google Gemini, local llama.cpp models
-9. **Extended Tool Suite** - write_file, edit_file, bash, grep, glob, and more
-10. **Approval System** - User confirmation for dangerous operations
-11. **Mode System** - Ask/Plan/Build modes with permission boundaries
-12. **Testing & CI/CD** - Comprehensive test coverage, automated deployment
-13. **Advanced Features** - Context window management, multi-file operations, code analysis
-
-## Architecture
-
-goop follows a clean, event-driven architecture with clear separation of concerns:
-
-### Backend Architecture
-
-- **HTTP Server (Hono)**: Lightweight web framework handling REST API and SSE endpoints
-- **API Layer**: REST routes for session management and message handling
-- **Session Manager**: Orchestrates conversations, manages context, and coordinates tool execution
-- **Provider System**: Abstract interface with concrete implementations (currently Anthropic Claude)
-- **Tool Registry**: Pluggable tool system with type-safe execution (currently: read_file)
-- **Streaming Layer**: Server-Sent Events (SSE) for real-time token streaming
-- **Database Layer (Drizzle ORM)**: Type-safe queries with automatic relation management
-
-### Frontend Architecture
-
-- **React UI**: Terminal-like interface with component-based structure
-- **State Management (Zustand)**: Centralized session and message state
-- **SSE Client**: Custom hook for handling real-time event streams
-- **API Client**: Type-safe backend communication layer
-- **Component Library**: Terminal, InputBox, and future modular components
-
-### Data Flow
-
-```
-User Input → Frontend (React)
-    ↓
-API Request → Backend (Hono)
-    ↓
-Session Manager → Load History + Process Message
-    ↓
-Provider (Claude) → Stream Response with Tool Calls
-    ↓
-Tool Execution → File System, etc.
-    ↓
-Database (PostgreSQL) → Persist Messages & Parts
-    ↓
-SSE Stream → Frontend (Real-time Display)
-```
-
-### Key Design Principles
-
-1. **Type Safety**: TypeScript + Zod validation throughout the entire stack
-2. **Modularity**: Each component (providers, tools, etc.) follows interface contracts
-3. **Extensibility**: Easy to add new AI providers, tools, and features
-4. **Real-time First**: Streaming architecture for responsive user experience
-5. **Persistence**: All conversations stored in PostgreSQL with proper relations
-6. **Security**: Tool execution with working directory constraints and input validation
-
-The system is designed for extensibility, allowing easy addition of new tools, providers, and features without modifying core infrastructure.
+Apache License 2.0
