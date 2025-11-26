@@ -17,9 +17,20 @@ apiRoutes.post("/sessions", async (c) => {
   const { title, workingDirectory } = z
     .object({
       title: z.string().default("New Conversation"),
-      workingDirectory: z.string(),
+      workingDirectory: z.string().min(1, "Working directory is required"),
     })
     .parse(body);
+
+  // Validate working directory exists and is accessible
+  const { access, constants } = await import("fs/promises");
+  try {
+    await access(workingDirectory, constants.R_OK);
+  } catch {
+    return c.json(
+      { error: "Working directory does not exist or is not accessible" },
+      400
+    );
+  }
 
   const [session] = await db
     .insert(sessions)
