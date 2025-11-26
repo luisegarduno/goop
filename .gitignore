@@ -2,6 +2,9 @@
 logs
 *.log
 npm-debug.log*
+
+# npm lock file (project uses Bun)
+package-lock.json
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
