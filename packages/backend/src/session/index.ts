@@ -125,6 +125,10 @@ export class SessionManager {
           });
 
           // Continue conversation with tool result - include ALL content from assistant message
+          // currentMessageContent should always have content at this point due to the tool_use being added above
+          if (currentMessageContent.length === 0) {
+            console.error("currentMessageContent is unexpectedly empty after tool use");
+          }
           history.push({
             role: "assistant",
             content: currentMessageContent,
