@@ -32,10 +32,8 @@ function App() {
           setWorkingDirectory(savedWorkingDir);
           setMessages(messages);
 
-          if (import.meta.env.DEV) {
-            console.log(`Restored session ${savedSessionId} with ${messages.length} messages`);
-            console.log(`Working directory: ${session.workingDirectory || savedWorkingDir}`);
-          }
+          console.log(`Restored session ${savedSessionId} with ${messages.length} messages`);
+          console.log(`Working directory: ${session.workingDirectory || savedWorkingDir}`);
         } catch (error) {
           console.error("Failed to restore session:", error);
           // Session doesn't exist or error occurred, show setup
@@ -60,9 +58,7 @@ function App() {
       // Create new session with working directory and title
       const session = await createSession(dir, title);
       setSessionId(session.id);
-      if (import.meta.env.DEV) {
-        console.log(`Created new session "${title}" (${session.id}) with working directory: ${dir}`);
-      }
+      console.log(`Created new session "${title}" (${session.id}) with working directory: ${dir}`);
     } catch (error) {
       console.error("Failed to create session:", error);
       setShowSetup(true); // Show modal again
