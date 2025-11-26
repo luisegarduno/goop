@@ -29,7 +29,6 @@ export class AnthropicProvider implements Provider {
       messages.length,
       "messages"
     );
-    console.log("[AnthropicProvider] Messages:", JSON.stringify(messages, null, 2));
 
     try {
       const stream = await this.client.messages.stream({
@@ -96,10 +95,6 @@ export class AnthropicProvider implements Provider {
       yield { type: "done" };
     } catch (error: any) {
       console.error("[AnthropicProvider] Error:", error);
-      console.error("[AnthropicProvider] Error details:", JSON.stringify(error, null, 2));
-      if (error.message) {
-        console.error("[AnthropicProvider] Error message:", error.message);
-      }
       throw error;
     }
   }
