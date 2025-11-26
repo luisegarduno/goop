@@ -11,7 +11,8 @@ This frontend package provides a minimal, terminal-inspired UI for interacting w
 - Terminal-style dark UI with monospace fonts
 - Real-time streaming of AI responses via Server-Sent Events (SSE)
 - Visual indicators for tool execution (file reading, etc.)
-- Session persistence across page refreshes
+- Session persistence across page refreshes with working directory configuration
+- Initial setup modal for session title and working directory specification
 - Type-safe API communication with backend
 - Zustand-based state management
 
@@ -44,6 +45,7 @@ src/
 │   └── client.ts              # Backend API communication layer
 ├── components/
 │   ├── InputBox.tsx           # Message input component with send button
+│   ├── SetupModal.tsx         # Initial session configuration modal
 │   └── Terminal.tsx           # Main chat display with message rendering
 ├── hooks/
 │   └── useSSE.ts              # Server-Sent Events connection hook (legacy)
@@ -63,6 +65,7 @@ src/
 **`src/components/`** - React Components
 - `Terminal.tsx`: Renders the message history and streaming responses. Displays user messages, assistant responses, tool usage, and tool results with appropriate styling.
 - `InputBox.tsx`: Fixed-position input field with send button. Handles message submission and disables input during streaming.
+- `SetupModal.tsx`: Modal dialog for initial session configuration. Allows users to specify session title and working directory before starting a conversation.
 
 **`src/hooks/`** - React Hooks
 - `useSSE.ts`: (Currently unused) EventSource-based hook for SSE connections. The actual SSE implementation is handled directly in App.tsx using fetch streams.
@@ -116,25 +119,68 @@ bun run dev
 
 3. Open http://localhost:3000 in your browser
 
+### Initial Setup Process
+
+When you first open the application (or when no valid session exists):
+
+1. **Setup Modal Appears**: You'll see a configuration dialog prompting for:
+   - **Session Title**: A descriptive name for your conversation (e.g., "Backend Refactor", "Bug Fix Session")
+   - **Working Directory**: The base path for file operations (defaults to current directory `.`)
+
+2. **Configure Session**: Fill in the details or use the defaults:
+   - Title helps identify conversations in the future
+   - Working directory determines where the `read_file` tool and other file operations will execute
+   - Example: Setting `/home/user/myproject` allows the AI to read files relative to that path
+
+3. **Start Chatting**: After submission, the modal closes and you can start sending messages. The working directory is included automatically in all file operation requests.
+
+**Notes:**
+- Session and working directory are saved to `localStorage` and persist across page refreshes
+- To change the working directory, you'll need to start a new session (future enhancement: in-session directory switching)
+- Absolute paths in file operations override the working directory
+
 ## Component Architecture
+
+### SetupModal.tsx
+
+Modal dialog for configuring new sessions before starting a conversation:
+
+- **Session Configuration**: Prompts user for session title and working directory
+- **Working Directory**: Optional path specification for file operations (defaults to current directory)
+- **Session Creation**: Creates session via API and initializes store state
+- **User Experience**: Appears on first run or when no valid session exists
+
+**Props:**
+
+- `onSetupComplete`: Callback fired after successful session creation with sessionId and workingDir
+
+**Key Features:**
+
+- Validates input before submission
+- Provides sensible defaults (title: "New Session", workingDir: ".")
+- Disables submit during session creation
+- Terminal-styled UI consistent with app theme
 
 ### App.tsx
 
 The root component orchestrates the entire application:
 
-- **Session Management**: Creates or restores session from `localStorage` on mount
+- **Session Management**: Creates or restores session from `localStorage` on mount, integrating SetupModal for new sessions
 - **Message Handling**: Processes user input and streams responses from backend
 - **SSE Streaming**: Uses Fetch API with `ReadableStream` to parse Server-Sent Events
 - **Event Dispatching**: Routes SSE events to appropriate Zustand store actions
+- **Working Directory**: Includes working directory in message requests for file operations
 
 **Key Flow:**
 
-1. On mount, attempts to restore previous session ID from `localStorage`
-2. If session exists on backend, loads message history
-3. If session doesn't exist, creates a new one
-4. User sends message → POST to `/api/sessions/:id/messages`
-5. Backend responds with SSE stream
-6. App.tsx parses events and updates Zustand store in real-time
+1. On mount, attempts to restore previous session ID and working directory from `localStorage`
+2. If session exists on backend, loads message history and working directory
+3. If session doesn't exist, displays SetupModal for configuration
+4. After setup, creates session with specified title and saves working directory to store
+5. User sends message → POST to `/api/sessions/:id/messages` with `workingDir` in request body
+6. Backend responds with SSE stream
+7. App.tsx parses events and updates Zustand store in real-time
+8. Enhanced `message.start` event handling displays proper assistant headers after tool execution
 
 ### Terminal.tsx
 
@@ -169,11 +215,12 @@ The `useSessionStore` hook provides centralized state management:
 
 ```typescript
 interface SessionStore {
-  sessionId: string | null;        // Current session UUID
-  messages: Message[];              // Completed messages
-  isStreaming: boolean;             // Whether AI is currently responding
-  currentText: string;              // Accumulating text during stream
-  currentParts: MessagePart[];      // Completed parts of current message
+  sessionId: string | null;            // Current session UUID
+  messages: Message[];                  // Completed messages
+  isStreaming: boolean;                 // Whether AI is currently responding
+  currentText: string;                  // Accumulating text during stream
+  currentParts: MessagePart[];          // Completed parts of current message
+  workingDirectory: string | null;      // Working directory for file operations
 
   // Actions
   setSessionId: (id: string) => void;
@@ -182,8 +229,10 @@ interface SessionStore {
   appendText: (text: string) => void;
   addToolUse: (toolName: string, input: any) => void;
   addToolResult: (result: string) => void;
+  startNewMessage: () => void;
   finishStreaming: () => void;
   setStreaming: (streaming: boolean) => void;
+  setWorkingDirectory: (dir: string) => void;
   clearSession: () => void;
 }
 ```
@@ -192,7 +241,8 @@ interface SessionStore {
 
 **Session Management:**
 - `setSessionId`: Sets session ID and persists to `localStorage`
-- `clearSession`: Resets all state and removes from `localStorage`
+- `setWorkingDirectory`: Sets working directory and persists to `localStorage`
+- `clearSession`: Resets all state (including working directory) and removes from `localStorage`
 
 **Message Management:**
 - `addMessage`: Appends a completed message to history
@@ -202,11 +252,17 @@ interface SessionStore {
 - `appendText`: Accumulates text deltas during streaming
 - `addToolUse`: Saves accumulated text as part, adds tool_use part
 - `addToolResult`: Adds tool_result part
+- `startNewMessage`: Resets currentParts and currentText to prepare for a new message (used after tool execution)
 - `finishStreaming`: Converts current parts/text to complete message, resets streaming state
 
 ### LocalStorage Persistence
 
-The session ID is persisted to `localStorage` with key `goop_session_id`. On page load, the app attempts to restore the session and reload messages from the backend.
+The following data is persisted to `localStorage`:
+
+- **Session ID** (`goop_session_id`): Current session UUID
+- **Working Directory** (`goop_working_directory`): Path for file operations
+
+On page load, the app attempts to restore both the session and working directory, then reloads messages from the backend. If the session doesn't exist on the backend, the SetupModal is displayed to configure a new session.
 
 ## API Integration and SSE Streaming
 

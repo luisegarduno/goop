@@ -16,6 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Phase 2 (Database Schema & Configuration)**: Complete
 - Database schema with 3 tables (sessions, messages, message_parts)
+- Sessions table includes working directory storage
 - Drizzle ORM setup with migrations
 - Type-safe configuration management with Zod validation
 - Environment variable loading from root .env
@@ -100,10 +101,13 @@ This project uses **Bun** as the runtime and package manager. All commands shoul
    - Opens automatically in browser
 
 3. Use the application:
+   - On first load, a setup modal will appear prompting for session title and working directory
+   - Working directory determines the base path for file operations (e.g., read_file tool)
    - Type messages in the terminal-style input box
    - See AI responses stream in real-time
    - Ask Claude to read files: "Can you read the package.json file?"
-   - All conversation history is persisted in PostgreSQL
+   - All conversation history and session settings are persisted in PostgreSQL
+   - Session data (including working directory) is also saved to localStorage for restoration
 
 ### Quick Setup Script
 
@@ -223,8 +227,9 @@ src/
 
 6. **Tool System**:
    - Tools define name, description, and Zod input schema
-   - Tool execution requires `ToolContext` (e.g., workingDir)
+   - Tool execution requires `ToolContext` with workingDir from session
    - Security: Read tool validates paths stay within working directory
+   - Working directory is set per-session and stored in database
    - Registry at `src/tools/index.ts` exports all available tools
    - Currently implemented: `read_file` tool for reading local files
 
@@ -235,6 +240,8 @@ src/
    - Handles streaming with SSE events
    - Persists all message parts (text, tool_use, tool_result) to database
    - Updates session timestamps on each interaction
+   - Emits message.start event after tool execution to properly indicate assistant response continuation
+   - Uses working directory stored in session for all tool executions
 
 8. **Server-Sent Events (SSE)**:
    - Event types: `message.start`, `message.delta`, `tool.start`, `tool.result`, `message.done`
@@ -259,6 +266,7 @@ src/
 │   └── client.ts         # Backend API communication functions
 ├── components/
 │   ├── InputBox.tsx      # Message input with send button
+│   ├── SetupModal.tsx    # Session setup modal for title and working directory
 │   └── Terminal.tsx      # Main message display component
 ├── hooks/
 │   └── useSSE.ts         # Server-Sent Events hook for streaming
@@ -274,8 +282,9 @@ src/
 
 1. **State Management with Zustand**:
    - Single store in `src/stores/session.ts`
-   - Manages: sessionId, messages array, streaming state, current text buffer
-   - Actions: setSessionId, addMessage, appendText, finishStreaming, setStreaming
+   - Manages: sessionId, workingDirectory, messages array, streaming state, current text buffer
+   - Actions: setSessionId, setWorkingDirectory, addMessage, appendText, finishStreaming, setStreaming
+   - Persists session data to localStorage for page refresh
    - No prop drilling - components access state via hooks
 
 2. **Server-Sent Events (SSE)**:
@@ -287,21 +296,24 @@ src/
 3. **Terminal UI Design**:
    - Dark theme with monospace font (Monaco, Menlo, Consolas)
    - Color-coded roles: user (cyan), assistant (green), tool (orange)
+   - Setup modal for session configuration (title and working directory)
    - Displays text, tool usage, and tool results inline
    - Streaming indicator (blinking cursor) during AI responses
    - Fixed input box at bottom with auto-scroll
 
 4. **API Client**:
-   - Functions: `createSession()`, `getSession()`, `getMessages()`, `sendMessage()`
+   - Functions: `createSession(title, workingDirectory)`, `getSession()`, `getMessages()`, `sendMessage()`
    - Base URL: `http://localhost:3001/api`
    - Returns JSON for REST calls
    - POST to `/sessions/:id/messages` triggers SSE stream
+   - Working directory stored in session and used for all file operations
 
 5. **Session Lifecycle**:
-   - App creates session on mount
-   - Session ID stored in Zustand
+   - App checks localStorage for existing session on mount
+   - If no session exists, SetupModal prompts user for session title and working directory
+   - Session ID and working directory stored in both Zustand and localStorage
    - Messages persist in PostgreSQL
-   - Future: Session persistence in localStorage for page refresh
+   - Page refresh restores session from localStorage and loads message history from backend
 
 ### Database
 
@@ -319,6 +331,7 @@ The database uses three tables with UUID primary keys and cascade delete relatio
 1. **sessions** - Chat sessions
    - `id` (UUID, primary key)
    - `title` (text) - Session title
+   - `working_directory` (text) - Base path for file operations
    - `created_at` (timestamp)
    - `updated_at` (timestamp)
 
@@ -378,6 +391,7 @@ The root `tsconfig.json` uses modern TypeScript settings:
 - Migration runner (`src/db/migrate.ts`) uses a single connection for safety
 - Cascade deletes are configured: deleting a session deletes all messages and parts
 - All IDs are UUIDs with `gen_random_uuid()` defaults
+- Migration 0001_premium_vapor.sql added `working_directory` column with default value for existing sessions
 
 ## API Endpoints
 
@@ -385,16 +399,22 @@ The backend exposes the following REST and SSE endpoints:
 
 **REST Endpoints:**
 - `GET /health` - Health check (returns `{ status: "ok" }`)
-- `POST /api/sessions` - Create new session (returns session object with id)
+- `POST /api/sessions` - Create new session
+  - Request body: `{ title?: string, workingDirectory?: string }`
+  - Returns session object with id, title, workingDirectory, createdAt, updatedAt
+  - Default title: "New Session"
+  - Default workingDirectory: current working directory
 - `GET /api/sessions` - List all sessions (ordered by updatedAt DESC)
 - `GET /api/sessions/:id` - Get specific session by ID
 - `GET /api/sessions/:id/messages` - Get all messages for a session (with parts)
 
 **SSE Streaming:**
 - `POST /api/sessions/:id/messages` - Send user message and stream AI response
-  - Request body: `{ content: string, workingDir?: string }`
+  - Request body: `{ content: string }`
+  - Working directory is retrieved from the session in the database
   - Returns: SSE stream with events (message.start, message.delta, tool.start, tool.result, message.done)
   - Content-Type: `text/event-stream`
+  - Note: message.start event is emitted both at conversation start and after tool execution completes
 
 ## Working with Providers
 
@@ -486,11 +506,11 @@ bun run test
 ## Next Steps & Future Enhancements
 
 **Immediate Improvements:**
-- Session persistence in localStorage for page refresh
-- Loading historical messages when reopening a session
 - Better error handling and user feedback
 - Conversation context pruning for long sessions
 - Multiple conversation UI (session list sidebar)
+- Session switching/management UI
+- Clear session/start new conversation functionality
 
 **Planned Features (Future Phases):**
 
