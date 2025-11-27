@@ -1,6 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Provider, ProviderMessage, StreamEvent, ToolDefinition } from "./base";
-import { loadConfig } from "../config/index";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
 // Add model list constant
@@ -32,7 +31,7 @@ export class AnthropicProvider implements Provider {
   private client: Anthropic;
   private model: string;
 
-  constructor(model: string = "claude-3-5-haiku-latest") {
+  constructor(model: string = "claude-3-5-haiku-latest", apiKey?: string) {
     // Validate model is in allowed list
     if (!ANTHROPIC_MODELS.includes(model as any)) {
       throw new Error(
@@ -40,9 +39,13 @@ export class AnthropicProvider implements Provider {
       );
     }
 
-    const config = loadConfig();
+    // Use provided API key or fall back to environment variable
+    const key = apiKey || process.env.ANTHROPIC_API_KEY;
+    if (!key) {
+      throw new Error("ANTHROPIC_API_KEY is required");
+    }
     this.client = new Anthropic({
-      apiKey: config.anthropic.apiKey,
+      apiKey: key,
     });
     this.model = model;
   }
