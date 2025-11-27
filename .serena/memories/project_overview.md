@@ -15,16 +15,24 @@
 Monorepo structure with separate frontend and backend packages, using Bun workspaces.
 
 ## Development Status
-Phases 1-6 complete:
+Phases 1-6 complete, Phase 7 partially complete:
 - Infrastructure setup ✅
 - Database schema & configuration ✅
 - Backend core (Hono server & API routes) ✅
 - Anthropic provider & tool system ✅
 - Session manager & streaming integration ✅
 - Frontend terminal UI ✅
+- OpenAI GPT integration ✅ (Phase 7)
+- Provider selection UI ✅ (Phase 7)
+
+## Current Capabilities
+- **Multi-Provider Support**: Anthropic Claude and OpenAI GPT with per-session provider selection
+- **Session Switching**: UI for navigating between multiple conversation sessions
+- **Settings Management**: Update provider, model, and working directory mid-conversation
+- **Provider-Specific Model Lists**: Static list for Anthropic, dynamic fetching for OpenAI
 
 ## Future Enhancements
-- Additional AI providers (OpenAI, Google, local models)
+- Additional AI providers (Google Gemini, local llama.cpp models)
 - Extended tool set (write_file, edit_file, bash, grep, glob)
 - User approval system for dangerous operations
 - Mode system (Ask, Plan, Build modes)

@@ -12,6 +12,7 @@
 - **zod-to-json-schema** (^3.22.0): Convert Zod schemas to JSON Schema for AI tools
 - **Dotenv** (^17.2.3): Environment variable loading
 - **Anthropic SDK** (^0.24.0): Claude API integration with streaming support
+- **OpenAI SDK** (^6.9.1): GPT API integration with streaming support
 
 ## Frontend (`frontend`)
 - **React 19**: UI framework
@@ -32,5 +33,8 @@
 - `verbatimModuleSyntax` for explicit imports/exports
 - `noEmit` mode (Bun handles transpilation)
 
-## AI Model
-- **Claude 3.5 Sonnet** (claude-3-5-sonnet-20241022): Current AI provider
+## AI Providers
+- **Anthropic Claude**: Multiple models including Haiku, Sonnet, and Opus variants (static model list)
+- **OpenAI GPT**: Dynamic model list fetched from OpenAI API
+- Provider and model selection is per-session and stored in database
+- API keys validated during session creation and settings updates (not stored in DB)

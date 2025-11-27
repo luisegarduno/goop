@@ -48,7 +48,9 @@ packages/backend/
 │   │   └── migrations/      # Generated SQL migrations
 │   ├── providers/
 │   │   ├── base.ts          # Abstract Provider interface
-│   │   └── anthropic.ts     # Anthropic Claude provider
+│   │   ├── index.ts         # Provider registry and utilities
+│   │   ├── anthropic.ts     # Anthropic Claude provider
+│   │   └── openai.ts        # OpenAI GPT provider
 │   ├── session/
 │   │   └── index.ts         # Session manager (conversation orchestrator)
 │   ├── streaming/
@@ -57,6 +59,9 @@ packages/backend/
 │   │   ├── base.ts          # Tool interface definition
 │   │   ├── index.ts         # Tool registry and execution
 │   │   └── read.ts          # Read file tool implementation
+│   ├── utils/
+│   │   ├── security.ts      # Security utilities for path validation
+│   │   └── validation.ts    # API key validation utilities
 │   └── index.ts             # Hono server entry point
 ├── drizzle.config.ts        # Drizzle Kit configuration
 ├── package.json             # Backend package config
@@ -74,9 +79,11 @@ packages/frontend/
 │   │   └── client.ts        # Backend API communication
 │   ├── assets/              # Images, fonts, etc.
 │   ├── components/
-│   │   ├── InputBox.tsx     # Message input component
-│   │   ├── SetupModal.tsx   # Session setup modal
-│   │   └── Terminal.tsx     # Main message display component
+│   │   ├── InputBox.tsx        # Message input component with auto-focus
+│   │   ├── SessionSwitcher.tsx # Dropdown for switching between sessions
+│   │   ├── SetupModal.tsx      # Session setup modal (title, workingDir, provider, model)
+│   │   ├── SettingsModal.tsx   # Settings modal for updating session configuration
+│   │   └── Terminal.tsx        # Main message display component with auto-scroll
 │   ├── hooks/
 │   │   └── useSSE.ts        # Server-Sent Events hook
 │   ├── stores/
@@ -99,8 +106,9 @@ packages/frontend/
 
 Three main tables with cascade delete relationships:
 
-1. **sessions**: Chat sessions with working directory
-   - Columns: id (UUID), title, working_directory, created_at, updated_at
+1. **sessions**: Chat sessions with working directory and provider settings
+   - Columns: id (UUID), title, working_directory, provider, model, created_at, updated_at
+   - Migrations: 0001 added working_directory, 0002 added provider and model columns
 
 2. **messages**: Messages within sessions
    - Columns: id (UUID), session_id (FK), role, created_at
@@ -121,14 +129,14 @@ Three main tables with cascade delete relationships:
 - `src/api/`: HTTP routes and Server-Sent Events streaming
 - `src/config/`: Environment and configuration management
 - `src/db/`: Database client, schema, and migrations
-- `src/providers/`: AI provider implementations (currently Anthropic)
+- `src/providers/`: AI provider implementations (Anthropic and OpenAI, with provider registry)
 - `src/session/`: Session manager orchestrating conversations
 - `src/streaming/`: SSE event definitions
 - `src/tools/`: Tool implementations (currently read_file)
 
 ### Frontend
 - `src/api/`: Backend communication layer
-- `src/components/`: React components (Terminal, InputBox, SetupModal)
+- `src/components/`: React components (Terminal, InputBox, SetupModal, SettingsModal, SessionSwitcher)
 - `src/hooks/`: Custom React hooks (useSSE for streaming)
 - `src/stores/`: Zustand state management
 - `src/styles/`: Global CSS and Tailwind configuration
