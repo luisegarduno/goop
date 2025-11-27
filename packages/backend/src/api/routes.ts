@@ -72,28 +72,9 @@ apiRoutes.post("/providers/validate", async (c) => {
     .parse(body);
 
   try {
-    if (provider === "anthropic") {
-      // Test Anthropic API key by making a simple request
-      const Anthropic = (await import("@anthropic-ai/sdk")).default;
-      const client = new Anthropic({ apiKey });
-
-      // Make a minimal request to validate the key
-      await client.messages.create({
-        model: "claude-3-5-haiku-latest",
-        max_tokens: 1,
-        messages: [{ role: "user", content: "test" }],
-      });
-
-      return c.json({ valid: true });
-    } else if (provider === "openai") {
-      // Test OpenAI API key by listing models
-      const OpenAI = (await import("openai")).default;
-      const client = new OpenAI({ apiKey });
-
-      await client.models.list();
-
-      return c.json({ valid: true });
-    }
+    const { validateProviderApiKey } = await import("../utils/validation");
+    await validateProviderApiKey(provider, apiKey);
+    return c.json({ valid: true });
   } catch (error: any) {
     console.error(`[API] ${provider} key validation failed:`, error.message);
     return c.json(
@@ -104,8 +85,6 @@ apiRoutes.post("/providers/validate", async (c) => {
       400
     );
   }
-
-  return c.json({ error: "Unknown provider" }, 400);
 });
 
 // Get masked API key from environment for a provider
@@ -163,19 +142,8 @@ apiRoutes.post("/sessions", async (c) => {
   // Validate API key if provided
   if (apiKey) {
     try {
-      if (provider === "anthropic") {
-        const Anthropic = (await import("@anthropic-ai/sdk")).default;
-        const client = new Anthropic({ apiKey });
-        await client.messages.create({
-          model: "claude-3-5-haiku-latest",
-          max_tokens: 1,
-          messages: [{ role: "user", content: "test" }],
-        });
-      } else if (provider === "openai") {
-        const OpenAI = (await import("openai")).default;
-        const client = new OpenAI({ apiKey });
-        await client.models.list();
-      }
+      const { validateProviderApiKey } = await import("../utils/validation");
+      await validateProviderApiKey(provider, apiKey);
     } catch (error: any) {
       return c.json(
         { error: `Invalid ${provider} API key: ${error.message}` },
@@ -275,19 +243,8 @@ apiRoutes.patch("/sessions/:id", async (c) => {
   if (apiKey) {
     const targetProvider = provider || (currentSession.provider as "anthropic" | "openai");
     try {
-      if (targetProvider === "anthropic") {
-        const Anthropic = (await import("@anthropic-ai/sdk")).default;
-        const client = new Anthropic({ apiKey });
-        await client.messages.create({
-          model: "claude-3-5-haiku-latest",
-          max_tokens: 1,
-          messages: [{ role: "user", content: "test" }],
-        });
-      } else if (targetProvider === "openai") {
-        const OpenAI = (await import("openai")).default;
-        const client = new OpenAI({ apiKey });
-        await client.models.list();
-      }
+      const { validateProviderApiKey } = await import("../utils/validation");
+      await validateProviderApiKey(targetProvider, apiKey);
     } catch (error: any) {
       return c.json(
         { error: `Invalid ${targetProvider} API key: ${error.message}` },
