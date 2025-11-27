@@ -331,7 +331,7 @@ src/
    - Page refresh restores session from localStorage and loads message history from backend
    - Users can switch between existing sessions via SessionSwitcher dropdown
    - Users can update session settings (provider, model, working directory) via Settings modal
-   - Settings changes preserve message history
+   - Settings changes preserve message history, except when changing providers (which clears history to avoid compatibility issues)
    - API keys are pre-populated from .env when modals open
    - Users can create new sessions via "New Session" button (clears current session and shows setup modal)
    - Session list shows title, working directory, and last updated timestamp
