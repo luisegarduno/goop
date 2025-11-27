@@ -123,8 +123,8 @@ export class OpenAIProvider implements Provider {
       // Check if this is a user message with ONLY tool results (no text content)
       const hasOnlyToolResults =
         msg.role === "user" &&
-        msg.content.every((p) => p.type === "tool_result") &&
-        msg.content.some((p) => p.type === "tool_result");
+        msg.content.length > 0 &&
+        msg.content.every((p) => p.type === "tool_result");
 
       // Only add the message if it's not a tool-result-only user message
       // (we'll add those as separate tool messages below)
