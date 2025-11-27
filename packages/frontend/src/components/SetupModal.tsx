@@ -98,14 +98,26 @@ export function SetupModal({ onComplete }: SetupModalProps) {
         body: JSON.stringify({ provider, apiKey }),
       });
 
-      const data = await res.json();
-
-      if (data.valid) {
-        setKeyValidated(true);
-        setValidationError("");
+      let data: any = {};
+      if (res.ok) {
+        data = await res.json();
+        if (data.valid) {
+          setKeyValidated(true);
+          setValidationError("");
+        } else {
+          setKeyValidated(false);
+          setValidationError(data.error || "Invalid API key");
+        }
       } else {
-        setKeyValidated(false);
-        setValidationError(data.error || "Invalid API key");
+        // Try to parse error message from response, fallback to generic
+        try {
+          data = await res.json();
+          setKeyValidated(false);
+          setValidationError(data.error || "Invalid API key");
+        } catch {
+          setKeyValidated(false);
+          setValidationError("Invalid API key");
+        }
       }
     } catch (error) {
       console.error("API key validation error:", error);
