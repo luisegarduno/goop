@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { getAllSessions, getMessages } from "../api/client";
 import type { SessionInfo } from "../api/client";
 import { useSessionStore } from "../stores/session";
@@ -10,14 +10,14 @@ export function SessionSwitcher() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { sessionId, loadSession } = useSessionStore();
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       const allSessions = await getAllSessions();
       setSessions(allSessions);
     } catch (error) {
       console.error("Failed to fetch sessions:", error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     // Fetch sessions when dropdown is opened to ensure fresh data
@@ -25,12 +25,12 @@ export function SessionSwitcher() {
     if (isOpen) {
       fetchSessions();
     }
-  }, [isOpen]);
+  }, [isOpen, fetchSessions]);
 
   // Initial fetch on mount for faster perceived loading
   useEffect(() => {
     fetchSessions();
-  }, []);
+  }, [fetchSessions]);
 
   useEffect(() => {
     // Close dropdown when clicking outside
