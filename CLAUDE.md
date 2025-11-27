@@ -48,7 +48,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Zustand state management
 - Real-time SSE connection for streaming responses
 - Message display with text, tool use, and tool result rendering
-- Input box with streaming state management
+- Input box with streaming state management and auto-focus
+- Session switching UI with keyboard navigation and accessibility features
+- Auto-scroll to latest messages during streaming
 
 ## Development Environment
 
@@ -265,9 +267,10 @@ src/
 ├── api/
 │   └── client.ts         # Backend API communication functions
 ├── components/
-│   ├── InputBox.tsx      # Message input with send button
+│   ├── InputBox.tsx      # Message input with send button and auto-focus
+│   ├── SessionSwitcher.tsx # Dropdown menu for switching between sessions
 │   ├── SetupModal.tsx    # Session setup modal for title and working directory
-│   └── Terminal.tsx      # Main message display component
+│   └── Terminal.tsx      # Main message display component with auto-scroll
 ├── hooks/
 │   └── useSSE.ts         # Server-Sent Events hook for streaming
 ├── stores/
@@ -283,7 +286,7 @@ src/
 1. **State Management with Zustand**:
    - Single store in `src/stores/session.ts`
    - Manages: sessionId, workingDirectory, messages array, streaming state, current text buffer
-   - Actions: setSessionId, setWorkingDirectory, addMessage, appendText, finishStreaming, setStreaming
+   - Actions: setSessionId, setWorkingDirectory, addMessage, setMessages, appendText, finishStreaming, setStreaming, loadSession, clearSession, addToolUse, addToolResult, startNewMessage
    - Persists session data to localStorage for page refresh
    - No prop drilling - components access state via hooks
 
@@ -297,16 +300,22 @@ src/
    - Dark theme with monospace font (Monaco, Menlo, Consolas)
    - Color-coded roles: user (cyan), assistant (green), tool (orange)
    - Setup modal for session configuration (title and working directory)
+   - SessionSwitcher dropdown for navigating between existing sessions
+   - New Session button to create additional conversations
    - Displays text, tool usage, and tool results inline
    - Streaming indicator (blinking cursor) during AI responses
-   - Fixed input box at bottom with auto-scroll
+   - Fixed input box at bottom with auto-scroll to latest messages
+   - Auto-focus input field when streaming finishes for better UX
+   - Keyboard navigation support (Arrow keys, Enter, Escape, Home, End, Tab)
+   - Accessibility features with ARIA labels and roles
 
 4. **API Client**:
-   - Functions: `createSession(title, workingDirectory)`, `getSession()`, `getMessages()`, `sendMessage()`
+   - Functions: `createSession(workingDirectory, title)`, `getSession(id)`, `getAllSessions()`, `getMessages(sessionId)`, `sendMessage(sessionId, content)`
    - Base URL: `http://localhost:3001/api`
    - Returns JSON for REST calls
    - POST to `/sessions/:id/messages` triggers SSE stream
    - Working directory stored in session and used for all file operations
+   - SessionInfo type includes: id, title, workingDirectory, createdAt, updatedAt
 
 5. **Session Lifecycle**:
    - App checks localStorage for existing session on mount
@@ -314,6 +323,11 @@ src/
    - Session ID and working directory stored in both Zustand and localStorage
    - Messages persist in PostgreSQL
    - Page refresh restores session from localStorage and loads message history from backend
+   - Users can switch between existing sessions via SessionSwitcher dropdown
+   - Users can create new sessions via "New Session" button (clears current session and shows setup modal)
+   - Session list shows title, working directory, and last updated timestamp
+   - Date formatting displays "Today HH:MM", "Yesterday HH:MM", "N days ago", or full date
+   - Sessions are ordered by most recently updated first
 
 ### Database
 
@@ -400,13 +414,14 @@ The backend exposes the following REST and SSE endpoints:
 **REST Endpoints:**
 - `GET /health` - Health check (returns `{ status: "ok" }`)
 - `POST /api/sessions` - Create new session
-  - Request body: `{ title?: string, workingDirectory?: string }`
+  - Request body: `{ title?: string, workingDirectory: string }`
   - Returns session object with id, title, workingDirectory, createdAt, updatedAt
   - Default title: "New Conversation"
-  - workingDirectory is required
+  - workingDirectory is required and validated for read access
 - `GET /api/sessions` - List all sessions (ordered by updatedAt DESC)
 - `GET /api/sessions/:id` - Get specific session by ID
 - `GET /api/sessions/:id/messages` - Get all messages for a session (with parts)
+- `GET /api/sessions/:id/events` - SSE endpoint for connection keep-alive with periodic pings (experimental, not actively used)
 
 **SSE Streaming:**
 - `POST /api/sessions/:id/messages` - Send user message and stream AI response
@@ -508,9 +523,10 @@ bun run test
 **Immediate Improvements:**
 - Better error handling and user feedback
 - Conversation context pruning for long sessions
-- Multiple conversation UI (session list sidebar)
-- Session switching/management UI
-- Clear session/start new conversation functionality
+- Session deletion functionality
+- Session renaming capability
+- Export/import session history
+- Search within sessions
 
 **Planned Features (Future Phases):**
 

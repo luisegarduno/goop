@@ -45,10 +45,11 @@ src/
 │   └── client.ts              # Backend API communication layer
 ├── components/
 │   ├── InputBox.tsx           # Message input component with send button
+│   ├── SessionSwitcher.tsx    # Dropdown for switching between sessions
 │   ├── SetupModal.tsx         # Initial session configuration modal
 │   └── Terminal.tsx           # Main chat display with message rendering
 ├── hooks/
-│   └── useSSE.ts              # Server-Sent Events connection hook (legacy)
+│   └── useSSE.ts              # Server-Sent Events connection hook
 ├── stores/
 │   └── session.ts             # Zustand store for session and message state
 ├── styles/
@@ -60,15 +61,16 @@ src/
 ### Directory Breakdown
 
 **`src/api/`** - Backend Integration
-- `client.ts`: Functions for creating sessions, fetching messages, and managing API communication. Includes type transformations between backend and frontend message formats.
+- `client.ts`: Functions for creating sessions, fetching sessions, fetching messages, and managing API communication. Includes `getAllSessions()` for retrieving all sessions, `SessionInfo` type for session metadata, and type transformations between backend and frontend message formats.
 
 **`src/components/`** - React Components
-- `Terminal.tsx`: Renders the message history and streaming responses. Displays user messages, assistant responses, tool usage, and tool results with appropriate styling.
-- `InputBox.tsx`: Fixed-position input field with send button. Handles message submission and disables input during streaming.
+- `Terminal.tsx`: Renders the message history and streaming responses. Displays user messages, assistant responses, tool usage, and tool results with appropriate styling. Includes auto-scroll functionality to keep the latest messages visible.
+- `InputBox.tsx`: Fixed-position input field with send button. Handles message submission and disables input during streaming. Automatically focuses input when streaming finishes.
 - `SetupModal.tsx`: Modal dialog for initial session configuration. Allows users to specify session title and working directory before starting a conversation.
+- `SessionSwitcher.tsx`: Dropdown component for switching between existing sessions. Displays all sessions with titles, working directories, and last updated timestamps. Includes keyboard navigation support.
 
 **`src/hooks/`** - React Hooks
-- `useSSE.ts`: (Currently unused) EventSource-based hook for SSE connections. The actual SSE implementation is handled directly in App.tsx using fetch streams.
+- `useSSE.ts`: EventSource-based hook for SSE connections to the `/events` endpoint. Note: The primary streaming implementation for message responses is handled directly in App.tsx using fetch streams and the `/messages` endpoint.
 
 **`src/stores/`** - State Management
 - `session.ts`: Zustand store managing session ID, messages, streaming state, and local storage persistence.
@@ -160,15 +162,38 @@ Modal dialog for configuring new sessions before starting a conversation:
 - Provides sensible defaults (title: "New Conversation", workingDir: ".")
 - Terminal-styled UI consistent with app theme
 
+### SessionSwitcher.tsx
+
+Dropdown component for browsing and switching between existing chat sessions:
+
+- **Session List**: Fetches and displays all available sessions with metadata
+- **Session Metadata**: Shows session title, working directory, and formatted update timestamp (Today, Yesterday, or date)
+- **Active Session**: Highlights the currently active session with a green indicator
+- **Session Loading**: Loads session messages and switches context when a session is selected
+- **Keyboard Navigation**: Full keyboard support with arrow keys, Enter, Escape, Home, and End
+- **Accessibility**: Includes proper ARIA attributes and focus management
+- **Auto-refresh**: Refreshes session list when dropdown opens to ensure fresh data
+
+**Key Features:**
+
+- Fetches sessions from `getAllSessions()` API
+- Displays formatted timestamps (Today, Yesterday, X days ago, or date)
+- Click outside or press Escape to close dropdown
+- Prevents duplicate switching (checks if session is already active)
+- Error handling with dismissible error messages
+- Terminal-styled UI with proper focus indicators
+
 ### App.tsx
 
 The root component orchestrates the entire application:
 
 - **Session Management**: Creates or restores session from `localStorage` on mount, integrating SetupModal for new sessions
+- **Session Switching**: Renders SessionSwitcher dropdown and New Session button in top-right corner when a session is active
 - **Message Handling**: Processes user input and streams responses from backend
 - **SSE Streaming**: Uses Fetch API with `ReadableStream` to parse Server-Sent Events
 - **Event Dispatching**: Routes SSE events to appropriate Zustand store actions
 - **Working Directory**: Includes working directory in message requests for file operations
+- **Dual SSE Connection**: Uses both `useSSE` hook for the `/events` endpoint and fetch streaming for message responses
 
 **Key Flow:**
 
@@ -176,10 +201,11 @@ The root component orchestrates the entire application:
 2. If session exists on backend, loads message history and working directory
 3. If session doesn't exist, displays SetupModal for configuration
 4. After setup, creates session with specified title and saves working directory to store
-5. User sends message → POST to `/api/sessions/:id/messages` with `workingDir` in request body
-6. Backend responds with SSE stream
-7. App.tsx parses events and updates Zustand store in real-time
-8. Enhanced `message.start` event handling displays proper assistant headers after tool execution
+5. Renders SessionSwitcher and New Session button in absolute positioned top-right corner
+6. User sends message → POST to `/api/sessions/:id/messages`
+7. Backend responds with SSE stream
+8. App.tsx parses events and updates Zustand store in real-time
+9. Enhanced `message.start` event handling displays proper assistant headers after tool execution
 
 ### Terminal.tsx
 
@@ -190,6 +216,7 @@ Renders the conversation history and current streaming response:
 - Distinguishes between user and assistant messages with color coding
 - Renders three part types: `text`, `tool_use`, `tool_result`
 - Displays animated cursor during streaming
+- **Auto-scroll**: Automatically scrolls to bottom when messages change or during streaming using `scrollIntoView`
 
 **Message Part Rendering:**
 
@@ -204,7 +231,12 @@ Fixed-position input field at bottom of screen:
 - Text input with submit button
 - Disables during streaming to prevent concurrent requests
 - Clears input after successful submission
+- **Auto-focus**: Automatically refocuses input when streaming completes for better UX
 - Styled with terminal color scheme
+
+**Props:**
+
+- `onSend`: Callback function invoked with the message text when user submits
 
 ## State Management with Zustand
 
@@ -233,6 +265,7 @@ interface SessionStore {
   setStreaming: (streaming: boolean) => void;
   setWorkingDirectory: (dir: string) => void;
   clearSession: () => void;
+  loadSession: (id: string, workingDir: string, messages: Message[]) => void;
 }
 ```
 
@@ -242,6 +275,7 @@ interface SessionStore {
 - `setSessionId`: Sets session ID and persists to `localStorage`
 - `setWorkingDirectory`: Sets working directory and persists to `localStorage`
 - `clearSession`: Resets all state (including working directory) and removes from `localStorage`
+- `loadSession`: Loads a complete session with ID, working directory, and messages. Used by SessionSwitcher to switch between sessions. Persists to `localStorage`.
 
 **Message Management:**
 - `addMessage`: Appends a completed message to history
@@ -269,9 +303,15 @@ On page load, the app attempts to restore both the session and working directory
 
 **Functions:**
 
-- `createSession()`: POST to `/api/sessions` → returns `{ id: string }`
+- `createSession(workingDirectory, title)`: POST to `/api/sessions` → returns `{ id: string, workingDirectory: string }`
 - `getSession(id)`: GET `/api/sessions/:id` → returns session metadata
+- `getAllSessions()`: GET `/api/sessions` → returns `SessionInfo[]` with all sessions (sorted by updatedAt DESC)
 - `getMessages(sessionId)`: GET `/api/sessions/:id/messages` → returns message history
+
+**Types:**
+
+- `SessionInfo`: Contains `id`, `title`, `workingDirectory`, `createdAt`, and `updatedAt` fields
+- `FrontendMessage`: Transformed message format for UI consumption
 
 **Type Transformations:**
 
@@ -612,10 +652,12 @@ import type { MessagePart } from "@goop/shared";
 - **Markdown Rendering**: Parse and display markdown in assistant responses
 - **Code Syntax Highlighting**: Highlight code blocks in messages
 - **File Upload**: Allow users to upload files for processing
-- **Session Management UI**: List and switch between multiple sessions
+- **Session Deletion**: Add ability to delete sessions from SessionSwitcher dropdown
+- **Session Renaming**: Allow users to rename sessions in-place
 - **Dark/Light Mode Toggle**: Support light theme
-- **Keyboard Shortcuts**: Cmd+K for quick actions, arrow keys for history
+- **Keyboard Shortcuts**: Cmd+K for quick actions, arrow keys for message history navigation
 - **Mobile Responsiveness**: Optimize for mobile devices
+- **Search Sessions**: Add search/filter functionality to SessionSwitcher for large numbers of sessions
 
 ## Related Documentation
 

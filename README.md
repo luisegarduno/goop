@@ -13,14 +13,15 @@ A minimal AI coding agent with web UI, built with Bun, TypeScript, React, and Po
    </tr>
 </table>
 
+## Features
 
-## Features (Phase 1)
-
-- 🤖 Anthropic Claude integration
-- 📁 File reading tool
-- 💬 Real-time streaming responses
-- 🗄️ PostgreSQL conversation persistence
-- 🎨 Terminal-like web UI
+- 🤖 Anthropic Claude integration with streaming support
+- 📁 File reading tool with path validation
+- 💬 Real-time streaming responses via Server-Sent Events
+- 🗄️ PostgreSQL conversation persistence with sessions
+- 🎨 Terminal-like web UI with session management
+- 🔄 Session switching between multiple conversations
+- ⚙️ Working directory configuration per session
 
 ## Prerequisites
 
@@ -95,7 +96,9 @@ goop/
 │       │   ├── App.tsx            # Root component
 │       │   ├── components/        # UI components
 │       │   │   ├── Terminal.tsx   # Terminal message display
-│       │   │   └── InputBox.tsx   # Message input field
+│       │   │   ├── InputBox.tsx   # Message input field
+│       │   │   ├── SetupModal.tsx # Session setup modal
+│       │   │   └── SessionSwitcher.tsx # Session navigation dropdown
 │       │   ├── hooks/             # Custom React hooks
 │       │   │   └── useSSE.ts      # SSE connection hook
 │       │   ├── stores/            # Zustand state management
@@ -153,7 +156,7 @@ goop/
 
 - **Docker** & Docker Compose - Database containerization
 - **ESLint** - Code linting
-- **TypeScript** ^5.3.0 - Type checking
+- **TypeScript** ^5.9.3 - Type checking
 
 ## Coding Agents
 

@@ -156,7 +156,14 @@ Response:
   "createdAt": "2025-11-25T...",
   "updatedAt": "2025-11-25T..."
 }
+
+Error Response (400 - Invalid Directory):
+{
+  "error": "Working directory does not exist or is not accessible"
+}
 ```
+
+**Note:** The working directory is validated for read access. If the directory doesn't exist or isn't accessible, a 400 error is returned.
 
 #### Get Session
 ```http

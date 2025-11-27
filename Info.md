@@ -107,6 +107,13 @@ The working directory determines which files Claude can access when using the `r
 4. **See tool usage**: When Claude uses the `read_file` tool, you'll see a visual indicator with the tool name
 5. **Continue the conversation**: All messages persist in the database, maintaining full conversation context
 
+### Session Management
+
+- **Switch Sessions**: Click the "Sessions" button in the top-right corner to view all your sessions. Select any session to switch to it instantly
+- **Create New Session**: Click the "New Session" button to start a fresh conversation with a new working directory
+- **Navigate Sessions**: Use keyboard shortcuts (Arrow keys, Enter, Escape) to quickly navigate the session switcher dropdown
+- **Session Information**: Each session in the dropdown displays its title, working directory, and last update time (Today, Yesterday, or date)
+
 ### Example Interactions
 
 **Ask about files:**
@@ -133,6 +140,8 @@ You: Great, now can you read the providers/anthropic.ts file?
 
 - **Real-time Streaming**: Watch Claude "type" responses as they're generated, creating a natural conversation flow
 - **Tool Visualization**: See when Claude uses tools with clear indicators showing tool name and status
+- **Session Management**: Switch between conversations instantly or start new sessions on demand
+- **Keyboard Navigation**: Full accessibility with arrow keys for session navigation
 - **Persistent Sessions**: Your conversations survive page refreshes and browser restarts
 - **Terminal Aesthetic**: Dark theme with monospace font for a classic terminal experience
 - **Type-safe Communication**: All data validated with Zod schemas throughout the stack
@@ -140,8 +149,10 @@ You: Great, now can you read the providers/anthropic.ts file?
 ### Keyboard Shortcuts
 
 - **Enter**: Send message (when input is focused)
-- **Escape**: Focus the input box (coming soon)
-- **Ctrl/Cmd + K**: Clear current session (coming soon)
+- **Arrow Down/Up**: Navigate session switcher dropdown (when open)
+- **Enter/Space**: Select session in dropdown
+- **Escape**: Close session switcher dropdown
+- **Home/End**: Jump to first/last session in dropdown
 
 ## Project Structure
 
@@ -181,7 +192,9 @@ goop/
 │       │   ├── App.tsx            # Root component
 │       │   ├── components/        # UI components
 │       │   │   ├── Terminal.tsx   # Terminal message display
-│       │   │   └── InputBox.tsx   # Message input field
+│       │   │   ├── InputBox.tsx   # Message input field
+│       │   │   ├── SetupModal.tsx # Session setup modal
+│       │   │   └── SessionSwitcher.tsx # Session switching dropdown
 │       │   ├── hooks/             # Custom React hooks
 │       │   │   └── useSSE.ts      # SSE connection hook
 │       │   ├── stores/            # Zustand state management
@@ -408,6 +421,9 @@ The schema uses cascade deletion to maintain referential integrity - deleting a 
 - Message input component with streaming state
 - Tool usage visualization in terminal
 - Responsive terminal UI with proper styling
+- Session setup modal for initial configuration
+- Session switcher dropdown with keyboard navigation
+- New session creation button
 
 ### Phase 7: Integration & Testing - COMPLETE ✅
 
@@ -418,6 +434,9 @@ The schema uses cascade deletion to maintain referential integrity - deleting a 
 - Error handling throughout the stack
 - Setup script for quick onboarding
 - Complete documentation
+- Session switching and management UI
+- Keyboard accessibility for all interactive elements
+- Date formatting (Today/Yesterday/relative dates)
 
 ## What's Working
 
@@ -428,18 +447,22 @@ The application is fully functional with the following capabilities:
 3. **Tool System**: Claude can read files from your local filesystem using the `read_file` tool
 4. **Working Directory Security**: Each session has a configured working directory that constrains where Claude can read files
 5. **Session Setup Modal**: First-time users configure session title and working directory through an intuitive modal interface
-6. **Session Persistence**: All conversations are saved to PostgreSQL and survive page refreshes
-7. **Type Safety**: Full TypeScript coverage with Zod validation throughout the stack
-8. **Developer Experience**: Hot reload for both frontend and backend during development
+6. **Session Management UI**: Switch between existing sessions via dropdown, create new sessions with a single click
+7. **Session Persistence**: All conversations are saved to PostgreSQL and survive page refreshes
+8. **Keyboard Navigation**: Full keyboard support for session switcher (Arrow keys, Enter, Escape, Home, End)
+9. **Type Safety**: Full TypeScript coverage with Zod validation throughout the stack
+10. **Developer Experience**: Hot reload for both frontend and backend during development
 
 ## Next Steps
 
-While the foundation is complete, future enhancements may include:
+While the core functionality is complete, future enhancements may include:
 
 - Additional AI providers (OpenAI, Google Gemini, local models)
 - More tools (write_file, edit_file, bash, grep, glob)
 - Approval system for dangerous operations
 - Mode system (Ask/Plan/Build) with different permission levels
+- Session deletion and renaming capabilities
+- Search/filter for sessions in the switcher
 - Comprehensive test coverage
 - Production deployment configuration
 
@@ -483,10 +506,10 @@ goop follows a clean, event-driven architecture with clear separation of concern
 ### Frontend Architecture
 
 - **React UI**: Terminal-like interface with component-based structure
-- **State Management (Zustand)**: Centralized session and message state
+- **State Management (Zustand)**: Centralized session and message state with localStorage persistence
 - **SSE Client**: Custom hook for handling real-time event streams
 - **API Client**: Type-safe backend communication layer
-- **Component Library**: Terminal, InputBox, and future modular components
+- **Component Library**: Terminal, InputBox, SetupModal, SessionSwitcher with keyboard navigation support
 
 ### Data Flow
 
