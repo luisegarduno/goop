@@ -82,7 +82,7 @@ export function SessionSwitcher() {
       const messages = await getMessages(session.id);
 
       // Load the session into the store
-      loadSession(session.id, session.workingDirectory, messages);
+      loadSession(session.id, session.workingDirectory, session.provider, session.model, messages);
 
       if (import.meta.env.DEV) {
         console.log(`Switched to session "${session.title}" (${session.id})`);
