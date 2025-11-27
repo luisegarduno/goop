@@ -16,6 +16,7 @@
     "@anthropic-ai/sdk": "^0.24.0",
     "dotenv": "^17.2.3",
     "drizzle-orm": "0.44.7",
+    "fast-glob": "^3.3.3",
     "hono": "^4.0.0",
     "openai": "^6.9.1",
     "postgres": "^3.4.0",
