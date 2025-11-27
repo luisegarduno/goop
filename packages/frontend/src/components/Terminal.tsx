@@ -1,10 +1,20 @@
+import { useEffect, useRef } from "react";
 import { useSessionStore } from "../stores/session";
 
 export function Terminal() {
   const { messages, currentText, currentParts, isStreaming } = useSessionStore();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change or during streaming
+  useEffect(() => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, currentText, currentParts, isStreaming]);
 
   return (
-    <div className="h-screen overflow-y-auto p-4 space-y-4">
+    <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 pb-24 space-y-4">
       {messages.map((msg) => (
         <div key={msg.id} className="space-y-2">
           <div
@@ -63,6 +73,8 @@ export function Terminal() {
       {isStreaming && (
         <div className="animate-pulse text-terminal-assistant">▊</div>
       )}
+      {/* Invisible element to scroll to */}
+      <div ref={bottomRef} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSessionStore } from "../stores/session";
 
 interface InputBoxProps {
@@ -8,6 +8,14 @@ interface InputBoxProps {
 export function InputBox({ onSend }: InputBoxProps) {
   const [input, setInput] = useState("");
   const { isStreaming } = useSessionStore();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus input when streaming finishes
+  useEffect(() => {
+    if (!isStreaming && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isStreaming]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,11 +32,13 @@ export function InputBox({ onSend }: InputBoxProps) {
     >
       <div className="flex gap-2">
         <input
+          ref={inputRef}
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={isStreaming}
           placeholder="Type a message..."
+          autoFocus
           className="flex-1 bg-gray-800 text-terminal-text px-4 py-2 rounded border border-gray-600 focus:outline-none focus:border-terminal-user disabled:opacity-50"
         />
         <button
