@@ -5,10 +5,18 @@ A minimal AI coding agent with web UI, built with Bun, TypeScript, React, and Po
 <table>
    <tr>
       <td width="50%">
-         <img width="100%" alt="goop_SessionSetup" src="https://github.com/user-attachments/assets/4928749d-8c1b-4eb4-9cb2-ca3deb934a8a" />
+         <img width="100%" alt="goop_SessionSetup" src="https://github.com/user-attachments/assets/e3b3005b-7839-4a7a-a2c7-bba40334bcd5" />
       </td>
       <td width="50%">
-         <img width="100%" alt="goop_conversation" src="https://github.com/user-attachments/assets/120e0390-70a3-4d3a-bf2d-c5ee8619ac18" />
+         <img width="100%" alt="goop_SessionList" src="https://github.com/user-attachments/assets/4300df11-9cde-4f42-9a6e-d8ca7b73f781" />
+      </td>
+   </tr>
+   <tr>
+      <td width="50%">
+         <img width="100%" alt="goop_SessionSettings_1" src="https://github.com/user-attachments/assets/6f3a7d20-659c-4336-9a76-72f4f000c635" />
+      </td>
+      <td width="50%">
+         <img width="100%" alt="goop_SessionSettings_2" src="https://github.com/user-attachments/assets/7384c529-c009-4018-82b3-ec16d7d38d85" />
       </td>
    </tr>
 </table>
