@@ -82,7 +82,13 @@ export function SessionSwitcher() {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
+    
+    // Normalize both dates to start of day in local timezone for accurate day comparison
+    const startOfDayDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const startOfDayNow = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Calculate difference in calendar days
+    const diffMs = startOfDayNow.getTime() - startOfDayDate.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) {
