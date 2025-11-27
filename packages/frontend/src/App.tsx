@@ -208,13 +208,29 @@ function App() {
     <div className="h-screen flex flex-col">
       {showSetup && <SetupModal onComplete={handleSetupComplete} />}
 
-      {/* Session Switcher & New Session Button - Top Right Corner */}
+      {/* Navigation Buttons - Top Right Corner */}
       {sessionId && (
         <div className="absolute top-4 right-4 z-40 flex gap-2">
+          {/* New Session Button */}
+          <button
+            onClick={() => {
+              clearSession();
+              setShowSetup(true);
+            }}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md border border-green-700 transition-colors flex items-center"
+            title="Start a new session"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span className="text-sm"/>
+          </button>
+          {/* Session Switcher */}
+          <SessionSwitcher />
           {/* Settings Button */}
           <button
             onClick={() => setShowSettings(true)}
-            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md border border-zinc-700 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md border border-zinc-700 transition-colors flex items-center"
             title="Session settings"
           >
             <svg
@@ -236,22 +252,8 @@ function App() {
                 d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-            <span className="text-sm">Settings</span>
+            <span className="text-sm"/>
           </button>
-          <button
-            onClick={() => {
-              clearSession();
-              setShowSetup(true);
-            }}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md border border-green-700 transition-colors flex items-center gap-2"
-            title="Start a new session"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span className="text-sm">New Session</span>
-          </button>
-          <SessionSwitcher />
         </div>
       )}
 
