@@ -10,6 +10,7 @@ export interface ProviderMessage {
     input?: Record<string, unknown>;
     tool_use_id?: string;
     content?: string;
+    is_error?: boolean;
   }>;
 }
 

@@ -47,7 +47,11 @@ if (import.meta.main) {
     const config = loadConfig();
     console.log("✓ Config loaded successfully");
     console.log("  Database URL:", config.database.url);
-    console.log("  Anthropic API Key:", config.anthropic.apiKey.substring(0, 10) + "...");
+    if (config.anthropic.apiKey) {
+      console.log("  Anthropic API Key:", config.anthropic.apiKey.substring(0, 10) + "...");
+    } else {
+      console.log("  Anthropic API Key: (not configured)");
+    }
     if (config.openai.apiKey) {
       console.log("  OpenAI API Key:", config.openai.apiKey.substring(0, 10) + "...");
     } else {
