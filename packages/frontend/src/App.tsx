@@ -5,7 +5,7 @@ import { SetupModal } from "./components/SetupModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { SessionSwitcher } from "./components/SessionSwitcher";
 import { useSessionStore } from "./stores/session";
-import { createSession, getSession, getMessages, updateSession } from "./api/client";
+import { createSession, getSession, getMessages, updateSession, API_BASE } from "./api/client";
 import "./styles/index.css";
 
 function App() {
@@ -151,7 +151,7 @@ function App() {
     const { setStreaming, appendText, addToolUse, addToolResult, startNewMessage, finishStreaming } = useSessionStore.getState();
 
     try {
-      const response = await fetch(`http://localhost:3001/api/sessions/${sessionId}/messages`, {
+      const response = await fetch(`${API_BASE}/sessions/${sessionId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: message }),
