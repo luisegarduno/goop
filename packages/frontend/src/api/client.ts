@@ -29,6 +29,22 @@ export async function getSession(id: string) {
   return res.json();
 }
 
+export interface SessionInfo {
+  id: string;
+  title: string;
+  workingDirectory: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getAllSessions(): Promise<SessionInfo[]> {
+  const res = await fetch(`${API_BASE}/sessions`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch sessions: ${res.status}`);
+  }
+  return res.json();
+}
+
 interface BackendMessagePart {
   id: string;
   messageId: string;
