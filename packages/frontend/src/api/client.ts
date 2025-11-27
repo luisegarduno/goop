@@ -40,7 +40,14 @@ export interface SessionInfo {
 export async function getAllSessions(): Promise<SessionInfo[]> {
   const res = await fetch(`${API_BASE}/sessions`);
   if (!res.ok) {
-    throw new Error(`Failed to fetch sessions: ${res.status}`);
+    let errorMessage = `Failed to fetch sessions: ${res.status}`;
+    try {
+      const error = await res.json();
+      errorMessage = error.error || errorMessage;
+    } catch {
+      // If not JSON, use the status code message
+    }
+    throw new Error(errorMessage);
   }
   return res.json();
 }
