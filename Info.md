@@ -16,14 +16,15 @@ The project is structured as a Bun workspace monorepo with separate frontend and
 - **Tool system** with file reading capabilities (extensible for more tools)
 - **Session management** with PostgreSQL persistence
 - **Terminal-like web interface** for seamless interaction
-- **Anthropic Claude integration** with support for tool calling
+- **Multi-provider AI support** with Anthropic Claude and OpenAI GPT integration
 - **Type-safe architecture** with Zod validation and Drizzle ORM
 
 ## Prerequisites
 
 - [Bun](https://bun.sh) >= 1.0
 - [Docker](https://www.docker.com) & Docker Compose
-- [Anthropic API key](https://console.anthropic.com/)
+- [Anthropic API key](https://console.anthropic.com/) (required for Claude models)
+- [OpenAI API key](https://platform.openai.com/api-keys) (optional, for GPT models)
 
 ## Quick Start
 
@@ -41,16 +42,17 @@ The project is structured as a Bun workspace monorepo with separate frontend and
    ```
 
 3. **Configure environment variables**<br/>
-   Copy `.env.example` to `.env` and add your Anthropic API key:
+   Copy `.env.example` to `.env` and add your API key(s):
 
    ```bash
    cp .env.example .env
    ```
 
-   Edit `.env` and set your Anthropic API key:
+   Edit `.env` and set at least one API key:
 
    ```env
-   ANTHROPIC_API_KEY=sk-ant-...
+   ANTHROPIC_API_KEY=sk-ant-...    # Required for Claude models
+   OPENAI_API_KEY=sk-...           # Optional, for GPT models
    ```
 
    Other variables are pre-configured for local development.
@@ -95,22 +97,26 @@ Once both servers are running, you can access the terminal interface at **http:/
 When you first open the application, you'll be greeted with a **Session Setup Modal** where you can configure:
 
 1. **Session Title**: Give your conversation a meaningful name (e.g., "React Refactoring", "API Design")
-2. **Working Directory**: Set the root directory where Claude can read files (defaults to your project directory)
+2. **Working Directory**: Set the root directory where the AI can read files (defaults to your project directory)
+3. **AI Provider**: Choose between Anthropic Claude or OpenAI GPT
+4. **Model**: Select a specific model from the chosen provider (e.g., claude-sonnet-4-0, gpt-4)
+5. **API Key**: Validate your API key (optional if already configured in `.env`)
 
-The working directory determines which files Claude can access when using the `read_file` tool. File operations are restricted to this directory to help maintain security boundaries.
+The working directory determines which files the AI can access when using the `read_file` tool. File operations are restricted to this directory to help maintain security boundaries.
 
 ### Basic Usage
 
 1. **Start a conversation**: After setting up your session, type a message in the input box at the bottom and press Enter or click "Send"
-2. **Watch the streaming response**: Claude's response will appear in real-time as it's generated
-3. **Ask Claude to read files**: Try asking "Can you read the README.md file?" or "What's in the spec.md file?" (files must be within your configured working directory)
-4. **See tool usage**: When Claude uses the `read_file` tool, you'll see a visual indicator with the tool name
+2. **Watch the streaming response**: AI responses will appear in real-time as they're generated
+3. **Ask the AI to read files**: Try asking "Can you read the README.md file?" or "What's in the spec.md file?" (files must be within your configured working directory)
+4. **See tool usage**: When the AI uses the `read_file` tool, you'll see a visual indicator with the tool name
 5. **Continue the conversation**: All messages persist in the database, maintaining full conversation context
 
 ### Session Management
 
 - **Switch Sessions**: Click the "Sessions" button in the top-right corner to view all your sessions. Select any session to switch to it instantly
-- **Create New Session**: Click the "New Session" button to start a fresh conversation with a new working directory
+- **Create New Session**: Click the "New Session" button to start a fresh conversation with a new configuration
+- **Update Settings**: Click the "Settings" button to change provider, model, working directory, or validate a different API key (conversation history is preserved unless changing providers)
 - **Navigate Sessions**: Use keyboard shortcuts (Arrow keys, Enter, Escape) to quickly navigate the session switcher dropdown
 - **Session Information**: Each session in the dropdown displays its title, working directory, and last update time (Today, Yesterday, or date)
 
@@ -138,8 +144,8 @@ You: Great, now can you read the providers/anthropic.ts file?
 
 ### Features in Action
 
-- **Real-time Streaming**: Watch Claude "type" responses as they're generated, creating a natural conversation flow
-- **Tool Visualization**: See when Claude uses tools with clear indicators showing tool name and status
+- **Real-time Streaming**: Watch the AI "type" responses as they're generated, creating a natural conversation flow
+- **Tool Visualization**: See when the AI uses tools with clear indicators showing tool name and status
 - **Session Management**: Switch between conversations instantly or start new sessions on demand
 - **Keyboard Navigation**: Full accessibility with arrow keys for session navigation
 - **Persistent Sessions**: Your conversations survive page refreshes and browser restarts
@@ -333,6 +339,8 @@ Stores conversation sessions with the AI agent.
 | `id`                | uuid      | Primary key (auto-generated)                       |
 | `title`             | text      | Session title/name                                 |
 | `working_directory` | text      | Root directory for file operations (security boundary) |
+| `provider`          | text      | AI provider name ('anthropic' or 'openai')         |
+| `model`             | text      | Model identifier (e.g., 'claude-sonnet-4-0', 'gpt-4') |
 | `created_at`        | timestamp | Creation timestamp (auto)                          |
 | `updated_at`        | timestamp | Last update timestamp (auto)                       |
 
@@ -398,6 +406,7 @@ The schema uses cascade deletion to maintain referential integrity - deleting a 
 
 - Abstract provider interface for multiple AI providers
 - Anthropic Claude API integration with streaming
+- OpenAI GPT API integration with streaming
 - Tool system infrastructure (base interface, registry)
 - File reading tool with security constraints
 - Zod schema to JSON schema conversion for tool definitions
@@ -421,7 +430,8 @@ The schema uses cascade deletion to maintain referential integrity - deleting a 
 - Message input component with streaming state
 - Tool usage visualization in terminal
 - Responsive terminal UI with proper styling
-- Session setup modal for initial configuration
+- Session setup modal with provider/model/API key selection
+- Settings modal for updating session configuration
 - Session switcher dropdown with keyboard navigation
 - New session creation button
 
@@ -442,22 +452,25 @@ The schema uses cascade deletion to maintain referential integrity - deleting a 
 
 The application is fully functional with the following capabilities:
 
-1. **AI Conversations**: Chat with Claude through a terminal-like web interface
-2. **Real-time Streaming**: See Claude's responses appear token by token as they're generated
-3. **Tool System**: Claude can read files from your local filesystem using the `read_file` tool
-4. **Working Directory Security**: Each session has a configured working directory that constrains where Claude can read files
-5. **Session Setup Modal**: First-time users configure session title and working directory through an intuitive modal interface
-6. **Session Management UI**: Switch between existing sessions via dropdown, create new sessions with a single click
-7. **Session Persistence**: All conversations are saved to PostgreSQL and survive page refreshes
-8. **Keyboard Navigation**: Full keyboard support for session switcher (Arrow keys, Enter, Escape, Home, End)
-9. **Type Safety**: Full TypeScript coverage with Zod validation throughout the stack
-10. **Developer Experience**: Hot reload for both frontend and backend during development
+1. **AI Conversations**: Chat with Claude or GPT through a terminal-like web interface
+2. **Multi-Provider Support**: Choose between Anthropic Claude and OpenAI GPT with model selection
+3. **Real-time Streaming**: See AI responses appear token by token as they're generated
+4. **Tool System**: AI can read files from your local filesystem using the `read_file` tool
+5. **Working Directory Security**: Each session has a configured working directory that constrains where files can be read
+6. **Session Setup Modal**: Configure session title, working directory, provider, model, and API key through an intuitive interface
+7. **Settings Management**: Update provider, model, or working directory mid-conversation via Settings modal
+8. **Session Management UI**: Switch between existing sessions via dropdown, create new sessions with a single click
+9. **Session Persistence**: All conversations are saved to PostgreSQL and survive page refreshes
+10. **Keyboard Navigation**: Full keyboard support for session switcher (Arrow keys, Enter, Escape, Home, End)
+11. **API Key Validation**: Validate API keys before session creation with helpful error messages
+12. **Type Safety**: Full TypeScript coverage with Zod validation throughout the stack
+13. **Developer Experience**: Hot reload for both frontend and backend during development
 
 ## Next Steps
 
 While the core functionality is complete, future enhancements may include:
 
-- Additional AI providers (OpenAI, Google Gemini, local models)
+- Additional AI providers (Google Gemini, local llama.cpp models)
 - More tools (write_file, edit_file, bash, grep, glob)
 - Approval system for dangerous operations
 - Mode system (Ask/Plan/Build) with different permission levels
@@ -475,14 +488,14 @@ See `spec.md` for the complete roadmap and implementation details.
 1. ✅ **Phase 1: Foundation** - Project setup, monorepo structure, PostgreSQL
 2. ✅ **Phase 2: Database Layer** - Schema design, migrations, Drizzle ORM
 3. ✅ **Phase 3: Backend Core** - Hono server, REST API, routing
-4. ✅ **Phase 4: Provider Integration** - Anthropic Claude, tool system
+4. ✅ **Phase 4: Provider Integration** - Anthropic Claude, OpenAI GPT, tool system
 5. ✅ **Phase 5: Session Management** - Conversation orchestration, SSE streaming
-6. ✅ **Phase 6: Frontend UI** - React terminal interface, real-time display
+6. ✅ **Phase 6: Frontend UI** - React terminal interface, provider/model selection
 7. ✅ **Phase 7: Integration & Testing** - End-to-end verification, setup automation
 
 ### Future Enhancements
 
-8. **Additional Providers** - OpenAI GPT, Google Gemini, local llama.cpp models
+8. **Additional Providers** - Google Gemini, local llama.cpp models
 9. **Extended Tool Suite** - write_file, edit_file, bash, grep, glob, and more
 10. **Approval System** - User confirmation for dangerous operations
 11. **Mode System** - Ask/Plan/Build modes with permission boundaries
@@ -496,9 +509,9 @@ goop follows a clean, event-driven architecture with clear separation of concern
 ### Backend Architecture
 
 - **HTTP Server (Hono)**: Lightweight web framework handling REST API and SSE endpoints
-- **API Layer**: REST routes for session management and message handling
+- **API Layer**: REST routes for session management, provider configuration, and message handling
 - **Session Manager**: Orchestrates conversations, manages context, and coordinates tool execution
-- **Provider System**: Abstract interface with concrete implementations (currently Anthropic Claude)
+- **Provider System**: Abstract interface with concrete implementations (Anthropic Claude, OpenAI GPT)
 - **Tool Registry**: Pluggable tool system with type-safe execution (currently: read_file)
 - **Streaming Layer**: Server-Sent Events (SSE) for real-time token streaming
 - **Database Layer (Drizzle ORM)**: Type-safe queries with automatic relation management
@@ -509,7 +522,7 @@ goop follows a clean, event-driven architecture with clear separation of concern
 - **State Management (Zustand)**: Centralized session and message state with localStorage persistence
 - **SSE Client**: Custom hook for handling real-time event streams
 - **API Client**: Type-safe backend communication layer
-- **Component Library**: Terminal, InputBox, SetupModal, SessionSwitcher with keyboard navigation support
+- **Component Library**: Terminal, InputBox, SetupModal, SettingsModal, SessionSwitcher with keyboard navigation support
 
 ### Data Flow
 

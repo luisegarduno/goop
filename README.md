@@ -91,15 +91,20 @@ goop/
 │   │   │   │   └── migrations/    # Generated SQL migrations
 │   │   │   ├── providers/         # AI provider integrations
 │   │   │   │   ├── base.ts        # Provider interface
-│   │   │   │   └── anthropic.ts   # Anthropic Claude provider
+│   │   │   │   ├── index.ts       # Provider registry
+│   │   │   │   ├── anthropic.ts   # Anthropic Claude provider
+│   │   │   │   └── openai.ts      # OpenAI GPT provider
 │   │   │   ├── tools/             # Tool system
 │   │   │   │   ├── base.ts        # Tool interface
 │   │   │   │   ├── index.ts       # Tool registry
 │   │   │   │   └── read.ts        # File reading tool
 │   │   │   ├── session/           # Session management
 │   │   │   │   └── index.ts       # Session orchestration
-│   │   │   └── streaming/         # SSE event formatting
-│   │   │       └── index.ts       # Event definitions & formatters
+│   │   │   ├── streaming/         # SSE event formatting
+│   │   │   │   └── index.ts       # Event definitions & formatters
+│   │   │   └── utils/             # Utility functions
+│   │   │       ├── security.ts    # Security helpers
+│   │   │       └── validation.ts  # Validation utilities
 │   │   ├── drizzle.config.ts      # Drizzle Kit configuration
 │   │   └── package.json
 │   │
@@ -111,6 +116,7 @@ goop/
 │       │   │   ├── Terminal.tsx   # Terminal message display
 │       │   │   ├── InputBox.tsx   # Message input field
 │       │   │   ├── SetupModal.tsx # Session setup modal
+│       │   │   ├── SettingsModal.tsx # Session settings modal
 │       │   │   └── SessionSwitcher.tsx # Session navigation dropdown
 │       │   ├── hooks/             # Custom React hooks
 │       │   │   └── useSSE.ts      # SSE connection hook
@@ -152,6 +158,7 @@ goop/
 | **Zod**                | ^3.25.76 | Schema validation             |
 | **zod-to-json-schema** | ^3.22.0  | Zod to JSON Schema conversion |
 | **@anthropic-ai/sdk**  | ^0.24.0  | Claude API integration        |
+| **openai**             | ^6.9.1   | OpenAI GPT integration        |
 | **dotenv**             | ^17.2.3  | Environment config            |
 
 ### Frontend
@@ -184,9 +191,9 @@ Primarily, the commands I used were [create_plan.md](.claude/commands/create_pla
 
 ## Roadmap
 
-- [x] Phase 1: Foundation (current)
-- [ ] Phase 2: Additional providers (OpenAI, Google)
-- [ ] Phase 3: More tools (write, edit, bash, grep, glob)
+- [x] Phase 1: Foundation
+- [ ] Phase 2: Additional providers (Google, local/llama.cpp)
+- [ ] Phase 3: More tools (write_file, edit_file, bash, grep, glob) (current)
 - [ ] Phase 4: Approval system
 - [ ] Phase 5: Mode system (Ask/Plan/Build)
 - [ ] Phase 6: Testing & CI/CD

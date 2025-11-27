@@ -12,7 +12,9 @@ This frontend package provides a minimal, terminal-inspired UI for interacting w
 - Real-time streaming of AI responses via Server-Sent Events (SSE)
 - Visual indicators for tool execution (file reading, etc.)
 - Session persistence across page refreshes with working directory configuration
-- Initial setup modal for session title and working directory specification
+- Initial setup modal for session title, working directory, provider, model, and API key configuration
+- Settings modal for updating session configuration (provider, model, working directory)
+- Multi-provider support (Anthropic Claude, OpenAI GPT) with API key validation
 - Type-safe API communication with backend
 - Zustand-based state management
 
@@ -66,8 +68,9 @@ src/
 **`src/components/`** - React Components
 - `Terminal.tsx`: Renders the message history and streaming responses. Displays user messages, assistant responses, tool usage, and tool results with appropriate styling. Includes auto-scroll functionality to keep the latest messages visible.
 - `InputBox.tsx`: Fixed-position input field with send button. Handles message submission and disables input during streaming. Automatically focuses input when streaming finishes.
-- `SetupModal.tsx`: Modal dialog for initial session configuration. Allows users to specify session title and working directory before starting a conversation.
+- `SetupModal.tsx`: Modal dialog for initial session configuration. Allows users to specify session title, working directory, AI provider (Anthropic/OpenAI), model selection, and API key before starting a conversation. Includes API key validation.
 - `SessionSwitcher.tsx`: Dropdown component for switching between existing sessions. Displays all sessions with titles, working directories, and last updated timestamps. Includes keyboard navigation support.
+- `SettingsModal.tsx`: Modal dialog for updating session settings. Allows users to change AI provider, model, working directory, and API key mid-session. Validates API key before saving changes.
 
 **`src/hooks/`** - React Hooks
 - `useSSE.ts`: EventSource-based hook for SSE connections to the `/events` endpoint. Note: The primary streaming implementation for message responses is handled directly in App.tsx using fetch streams and the `/messages` endpoint.
@@ -128,17 +131,23 @@ When you first open the application (or when no valid session exists):
 1. **Setup Modal Appears**: You'll see a configuration dialog prompting for:
    - **Session Title**: A descriptive name for your conversation (e.g., "Backend Refactor", "Bug Fix Session")
    - **Working Directory**: The base path for file operations (defaults to current directory `.`)
+   - **AI Provider**: Choose between Anthropic Claude or OpenAI GPT
+   - **Model**: Select from available models for the chosen provider (dynamically fetched)
+   - **API Key**: Enter and validate your API key (or use the one configured in `.env`)
 
 2. **Configure Session**: Fill in the details or use the defaults:
    - Title helps identify conversations in the future
    - Working directory determines where the `read_file` tool and other file operations will execute
    - Example: Setting `/home/user/myproject` allows the AI to read files relative to that path
+   - Provider and model determine which AI powers the conversation
+   - API key is validated before session creation (displays masked version from `.env` for reference)
 
-3. **Start Chatting**: After submission, the modal closes and you can start sending messages. The working directory is included automatically in all file operation requests.
+3. **Start Chatting**: After submission, the modal closes and you can start sending messages. The working directory, provider, and model are included automatically in all requests.
 
 **Notes:**
-- Session and working directory are saved to `localStorage` and persist across page refreshes
-- To change the working directory, you'll need to start a new session (future enhancement: in-session directory switching)
+- Session ID, working directory, provider, and model are saved to `localStorage` and persist across page refreshes
+- To change settings (provider, model, working directory), click the Settings button in the UI
+- Changing providers clears message history to ensure compatibility
 - Absolute paths in file operations override the working directory
 
 ## Component Architecture
@@ -147,20 +156,54 @@ When you first open the application (or when no valid session exists):
 
 Modal dialog for configuring new sessions before starting a conversation:
 
-- **Session Configuration**: Prompts user for session title and working directory
+- **Session Configuration**: Prompts user for session title, working directory, AI provider, model, and API key
+- **Provider Selection**: Fetches available providers from backend (Anthropic, OpenAI)
+- **Model Selection**: Dynamically loads models for selected provider
+- **API Key Validation**: Validates API key before session creation, displays masked version from `.env` for reference
 - **Working Directory**: Optional path specification for file operations (defaults to current directory)
-- **Session Creation**: Creates session via API and initializes store state
+- **Session Creation**: Creates session via API with validated credentials and initializes store state
 - **User Experience**: Appears on first run or when no valid session exists
 
 **Props:**
 
-- `onComplete`: Callback fired with workingDirectory and title for session creation
+- `onComplete`: Callback fired with sessionId, workingDirectory, provider, and model for session initialization
 
 **Key Features:**
 
 - Validates input before submission
-- Provides sensible defaults (title: "New Conversation", workingDir: ".")
+- Provides sensible defaults (title: "New Conversation", workingDir: ".", provider: "anthropic")
+- Fetches provider-specific model lists dynamically
+- Validates API key against provider before creating session
+- Shows masked API key from `.env` below input field (input itself is NOT pre-populated)
 - Terminal-styled UI consistent with app theme
+
+### SettingsModal.tsx
+
+Modal dialog for updating session configuration mid-conversation:
+
+- **Provider & Model Updates**: Change AI provider and model without creating a new session
+- **Working Directory Updates**: Modify the base path for file operations
+- **API Key Re-validation**: Enter and validate new API keys
+- **Dynamic Model Loading**: Fetches fresh model list when provider changes
+- **Persistence**: Saves changes to backend via `updateSession` API
+
+**Props:**
+
+- `currentProvider`: Current provider name
+- `currentModel`: Current model name
+- `currentWorkingDirectory`: Current working directory
+- `onClose`: Callback to close modal
+- `onSave`: Callback fired with updated settings (provider, model, apiKey, workingDirectory)
+
+**Key Features:**
+
+- Fetches available providers and models dynamically
+- Displays masked API key from `.env` for reference
+- Validates new API key before saving
+- Allows users to use API key from `.env` without re-entering
+- Shows loading states during model fetching and key validation
+- Error handling with user-friendly messages
+- Terminal-styled UI with close button
 
 ### SessionSwitcher.tsx
 
@@ -247,14 +290,19 @@ The `useSessionStore` hook provides centralized state management:
 ```typescript
 interface SessionStore {
   sessionId: string | null;            // Current session UUID
+  workingDirectory: string | null;      // Working directory for file operations
+  provider: string | null;              // AI provider (anthropic, openai)
+  model: string | null;                 // Model name
   messages: Message[];                  // Completed messages
   isStreaming: boolean;                 // Whether AI is currently responding
   currentText: string;                  // Accumulating text during stream
   currentParts: MessagePart[];          // Completed parts of current message
-  workingDirectory: string | null;      // Working directory for file operations
 
   // Actions
   setSessionId: (id: string) => void;
+  setWorkingDirectory: (dir: string) => void;
+  setProvider: (provider: string) => void;
+  setModel: (model: string) => void;
   addMessage: (message: Message) => void;
   setMessages: (messages: Message[]) => void;
   appendText: (text: string) => void;
@@ -263,9 +311,8 @@ interface SessionStore {
   startNewMessage: () => void;
   finishStreaming: () => void;
   setStreaming: (streaming: boolean) => void;
-  setWorkingDirectory: (dir: string) => void;
   clearSession: () => void;
-  loadSession: (id: string, workingDir: string, messages: Message[]) => void;
+  loadSession: (id: string, workingDir: string, provider: string, model: string, messages: Message[]) => void;
 }
 ```
 
@@ -274,8 +321,10 @@ interface SessionStore {
 **Session Management:**
 - `setSessionId`: Sets session ID and persists to `localStorage`
 - `setWorkingDirectory`: Sets working directory and persists to `localStorage`
-- `clearSession`: Resets all state (including working directory) and removes from `localStorage`
-- `loadSession`: Loads a complete session with ID, working directory, and messages. Used by SessionSwitcher to switch between sessions. Persists to `localStorage`.
+- `setProvider`: Sets AI provider and persists to `localStorage`
+- `setModel`: Sets model name and persists to `localStorage`
+- `clearSession`: Resets all state (including working directory, provider, model) and removes from `localStorage`
+- `loadSession`: Loads a complete session with ID, working directory, provider, model, and messages. Used by SessionSwitcher to switch between sessions. Persists to `localStorage`.
 
 **Message Management:**
 - `addMessage`: Appends a completed message to history
@@ -294,8 +343,10 @@ The following data is persisted to `localStorage`:
 
 - **Session ID** (`goop_session_id`): Current session UUID
 - **Working Directory** (`goop_working_directory`): Path for file operations
+- **Provider** (`goop_provider`): AI provider name (anthropic, openai)
+- **Model** (`goop_model`): Model name
 
-On page load, the app attempts to restore both the session and working directory, then reloads messages from the backend. If the session doesn't exist on the backend, the SetupModal is displayed to configure a new session.
+On page load, the app attempts to restore the session ID, working directory, provider, and model, then reloads messages from the backend. If the session doesn't exist on the backend, the SetupModal is displayed to configure a new session.
 
 ## API Integration and SSE Streaming
 
@@ -303,14 +354,22 @@ On page load, the app attempts to restore both the session and working directory
 
 **Functions:**
 
-- `createSession(workingDirectory, title)`: POST to `/api/sessions` → returns `{ id: string, workingDirectory: string }`
+- `createSession(workingDirectory, title, provider, model, apiKey?)`: POST to `/api/sessions` → returns `SessionInfo`
+- `updateSession(sessionId, updates)`: PATCH to `/api/sessions/:id` → updates session settings (provider, model, workingDirectory) and returns updated `SessionInfo`
 - `getSession(id)`: GET `/api/sessions/:id` → returns session metadata
 - `getAllSessions()`: GET `/api/sessions` → returns `SessionInfo[]` with all sessions (sorted by updatedAt DESC)
 - `getMessages(sessionId)`: GET `/api/sessions/:id/messages` → returns message history
 
+**Provider-Related Endpoints** (accessed directly via fetch, not exported functions):
+
+- GET `/api/providers` → returns list of available providers with displayName
+- GET `/api/providers/:name/models` → returns `{ models: string[] }` for the specified provider
+- GET `/api/providers/:name/api-key` → returns `{ apiKey: string, isConfigured: boolean }` with masked API key from `.env`
+- POST `/api/providers/validate` → validates API key for a provider, body: `{ provider, apiKey }`
+
 **Types:**
 
-- `SessionInfo`: Contains `id`, `title`, `workingDirectory`, `createdAt`, and `updatedAt` fields
+- `SessionInfo`: Contains `id`, `title`, `workingDirectory`, `provider`, `model`, `createdAt`, and `updatedAt` fields
 - `FrontendMessage`: Transformed message format for UI consumption
 
 **Type Transformations:**
@@ -653,11 +712,12 @@ import type { MessagePart } from "@goop/shared";
 - **Code Syntax Highlighting**: Highlight code blocks in messages
 - **File Upload**: Allow users to upload files for processing
 - **Session Deletion**: Add ability to delete sessions from SessionSwitcher dropdown
-- **Session Renaming**: Allow users to rename sessions in-place
+- **Session Renaming**: Allow users to rename sessions in-place via inline editing
 - **Dark/Light Mode Toggle**: Support light theme
 - **Keyboard Shortcuts**: Cmd+K for quick actions, arrow keys for message history navigation
 - **Mobile Responsiveness**: Optimize for mobile devices
 - **Search Sessions**: Add search/filter functionality to SessionSwitcher for large numbers of sessions
+- **Additional Providers**: Google Gemini, local llama.cpp models, etc.
 
 ## Related Documentation
 

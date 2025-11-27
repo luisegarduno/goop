@@ -48,15 +48,20 @@ packages/backend/
 │   │   └── routes.ts         # REST endpoints and SSE streaming
 │   ├── providers/            # AI provider integrations
 │   │   ├── base.ts           # Provider interface definition
-│   │   └── anthropic.ts      # Anthropic Claude provider implementation
+│   │   ├── index.ts          # Provider registry and factory functions
+│   │   ├── anthropic.ts      # Anthropic Claude provider implementation
+│   │   └── openai.ts         # OpenAI GPT provider implementation
 │   ├── tools/                # Tool system
 │   │   ├── base.ts           # Tool interface definition
 │   │   ├── index.ts          # Tool registry
 │   │   └── read.ts           # Read file tool implementation
 │   ├── session/              # Session management
 │   │   └── index.ts          # SessionManager (orchestrates AI + tools)
-│   └── streaming/            # SSE utilities
-│       └── index.ts          # SSE event types and formatting
+│   ├── streaming/            # SSE utilities
+│   │   └── index.ts          # SSE event types and formatting
+│   └── utils/                # Utility functions
+│       ├── security.ts       # Security utilities (path validation, etc.)
+│       └── validation.ts     # API key validation and provider checks
 ├── drizzle.config.ts         # Drizzle Kit configuration
 ├── package.json              # Dependencies and scripts
 └── tsconfig.json             # TypeScript configuration
@@ -88,8 +93,9 @@ packages/backend/
    POSTGRES_USER=goop
    POSTGRES_PASSWORD=pass123
 
-   # Anthropic API
+   # AI Provider API Keys
    ANTHROPIC_API_KEY=sk-ant-your-api-key-here
+   OPENAI_API_KEY=sk-your-openai-key-here
 
    # Server
    HONO_BACKEND_PORT=3001
@@ -136,6 +142,68 @@ bun run typecheck    # Type-check without emitting files
 
 ## API Endpoints
 
+### Providers
+
+#### List Available Providers
+```http
+GET /api/providers
+
+Response:
+[
+  {
+    "name": "anthropic",
+    "displayName": "Anthropic Claude",
+    "requiresApiKey": true
+  },
+  {
+    "name": "openai",
+    "displayName": "OpenAI GPT",
+    "requiresApiKey": true
+  }
+]
+```
+
+#### Get Provider Models
+```http
+GET /api/providers/:name/models
+
+Response:
+[
+  {
+    "id": "claude-3-5-haiku-latest",
+    "name": "Claude 3.5 Haiku"
+  },
+  // ... more models
+]
+```
+
+#### Get Provider API Key (Masked)
+```http
+GET /api/providers/:name/api-key
+
+Response:
+{
+  "apiKey": "sk-ant-...xyz",  // Masked version from .env
+  "isConfigured": true
+}
+```
+
+#### Validate API Key
+```http
+POST /api/providers/validate
+Content-Type: application/json
+
+{
+  "provider": "anthropic",
+  "apiKey": "sk-ant-your-key"
+}
+
+Response:
+{
+  "valid": true
+}
+```
+
 ### Sessions
 
 #### Create Session
@@ -145,7 +213,10 @@ Content-Type: application/json
 
 {
   "title": "New Conversation",
-  "workingDirectory": "/path/to/project"
+  "workingDirectory": "/path/to/project",
+  "provider": "anthropic",
+  "model": "claude-3-5-haiku-latest",
+  "apiKey": "sk-ant-optional-key"  // Optional, uses .env if not provided
 }
 
 Response:
@@ -153,6 +224,8 @@ Response:
   "id": "uuid",
   "title": "New Conversation",
   "workingDirectory": "/path/to/project",
+  "provider": "anthropic",
+  "model": "claude-3-5-haiku-latest",
   "createdAt": "2025-11-25T...",
   "updatedAt": "2025-11-25T..."
 }
@@ -161,9 +234,14 @@ Error Response (400 - Invalid Directory):
 {
   "error": "Working directory does not exist or is not accessible"
 }
+
+Error Response (400 - Invalid API Key):
+{
+  "error": "Invalid API key for provider"
+}
 ```
 
-**Note:** The working directory is validated for read access. If the directory doesn't exist or isn't accessible, a 400 error is returned.
+**Note:** The working directory is validated for read access. API keys are validated if provided. Sessions store provider and model preferences.
 
 #### Get Session
 ```http
@@ -174,6 +252,31 @@ Response:
   "id": "uuid",
   "title": "New Conversation",
   "workingDirectory": "/path/to/project",
+  "provider": "anthropic",
+  "model": "claude-3-5-haiku-latest",
+  "createdAt": "2025-11-25T...",
+  "updatedAt": "2025-11-25T..."
+}
+```
+
+#### Update Session
+```http
+PATCH /api/sessions/:id
+Content-Type: application/json
+
+{
+  "provider": "openai",
+  "model": "gpt-4",
+  "workingDirectory": "/new/path"
+}
+
+Response:
+{
+  "id": "uuid",
+  "title": "New Conversation",
+  "workingDirectory": "/new/path",
+  "provider": "openai",
+  "model": "gpt-4",
   "createdAt": "2025-11-25T...",
   "updatedAt": "2025-11-25T..."
 }
@@ -189,6 +292,8 @@ Response:
     "id": "uuid",
     "title": "New Conversation",
     "workingDirectory": "/path/to/project",
+    "provider": "anthropic",
+    "model": "claude-3-5-haiku-latest",
     "createdAt": "2025-11-25T...",
     "updatedAt": "2025-11-25T..."
   }
@@ -299,7 +404,14 @@ interface Provider {
 ```
 
 **Current Providers:**
-- **AnthropicProvider** (`src/providers/anthropic.ts`) - Claude 3.5 Haiku with streaming and tool use support
+- **AnthropicProvider** (`src/providers/anthropic.ts`) - Claude models with streaming and tool use support
+- **OpenAIProvider** (`src/providers/openai.ts`) - OpenAI GPT models with streaming and tool use support
+
+**Provider Registry:**
+The `src/providers/index.ts` file exports:
+- `AVAILABLE_PROVIDERS` - List of all available providers with metadata
+- `createProvider(name, apiKey)` - Factory function to instantiate providers
+- `getProviderInfo(name)` - Get metadata about a specific provider
 
 **Stream Events:**
 - `{ type: "text", text: string }` - Text chunk from AI
@@ -354,10 +466,15 @@ The `SessionManager` orchestrates the conversation flow between the AI provider,
 7. Update session timestamp when complete
 
 **Recent Improvements:**
-- Message history now includes complete content blocks combining text and tool_use parts
+- Multi-provider support (Anthropic Claude and OpenAI GPT)
+- Per-session provider and model configuration
+- API key validation endpoints
+- Provider metadata and model listing APIs
+- Message history includes complete content blocks combining text and tool_use parts
 - Working directory is retrieved from session record instead of request body
 - Tool execution triggers a new `message.start` event before AI continues
-- Enhanced error logging in provider streaming
+- Session settings can be updated via PATCH endpoint
+- Security utilities for path validation and API key checking
 
 ### SSE Streaming
 
@@ -391,7 +508,10 @@ Configuration is managed via environment variables and validated with Zod.
     url: string  // PostgreSQL connection string
   },
   anthropic: {
-    apiKey: string  // Anthropic API key
+    apiKey?: string  // Anthropic API key (optional)
+  },
+  openai: {
+    apiKey?: string  // OpenAI API key (optional)
   },
   server: {
     port: number         // HTTP server port (default: 3001)
@@ -409,7 +529,8 @@ const config = loadConfig();  // Throws if validation fails
 
 **Environment Variables:**
 - `DATABASE_URL` - PostgreSQL connection string (required)
-- `ANTHROPIC_API_KEY` - Anthropic API key (required)
+- `ANTHROPIC_API_KEY` - Anthropic API key (optional, can be provided per-session)
+- `OPENAI_API_KEY` - OpenAI API key (optional, can be provided per-session)
 - `HONO_BACKEND_PORT` - Server port (default: 3001)
 - `NODE_ENV` - Environment mode (default: development)
 
@@ -423,6 +544,8 @@ The database uses three tables with UUID primary keys and cascade delete relatio
 - `id` (uuid, primary key)
 - `title` (text)
 - `working_directory` (text, not null) - Base directory for tool operations
+- `provider` (text, not null, default: 'anthropic') - AI provider name
+- `model` (text, not null, default: 'claude-3-5-haiku-latest') - Model identifier
 - `created_at` (timestamp)
 - `updated_at` (timestamp)
 
@@ -461,8 +584,9 @@ bun run db:studio
 Opens Drizzle Studio at `https://local.drizzle.studio`.
 
 **Migration History:**
-- `0000_curvy_network.sql` - Initial schema (sessions, messages, message_parts)
+- `0000_unique_post.sql` - Initial schema (sessions, messages, message_parts)
 - `0001_premium_vapor.sql` - Added `working_directory` column to sessions table with default value for existing rows
+- `0002_clean_guardian.sql` - Added `provider` and `model` columns to sessions table for multi-provider support
 
 ### Relations
 
@@ -645,14 +769,17 @@ curl http://localhost:3001/api/sessions/$SESSION/messages
 2. Delete duplicate migration files
 3. Re-run: `bun run db:migrate`
 
-### Anthropic API Errors
+### AI Provider API Errors
 
-**Problem:** `401 Unauthorized`
+**Problem:** `401 Unauthorized` or `Invalid API key`
 
 **Solution:**
-1. Verify `ANTHROPIC_API_KEY` in `.env`
-2. Check API key is valid at https://console.anthropic.com
+1. Verify `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in `.env`
+2. Check API key is valid at provider console:
+   - Anthropic: https://console.anthropic.com
+   - OpenAI: https://platform.openai.com
 3. Restart dev server after updating `.env`
+4. Use `/api/providers/validate` endpoint to test API keys
 
 ### Hot Reload Not Working
 
@@ -678,15 +805,14 @@ curl http://localhost:3001/api/sessions/$SESSION/messages
 
 ## Next Steps
 
-This backend implements **Phase 1: Foundation** from the specification. Future phases will add:
+This backend has completed the core foundation including multi-provider support. Future phases will add:
 
-- **Phase 2:** Additional providers (OpenAI, Google Gemini, llama.cpp)
-- **Phase 3:** More tools (write_file, edit_file, bash, grep, glob)
-- **Phase 4:** Approval system for dangerous operations
-- **Phase 5:** Mode enforcement (Ask/Plan/Build)
-- **Phase 6:** Comprehensive testing (90%+ coverage)
-
-See the [implementation plan](/thoughts/shared/plans/2025-11-24-goop-foundation.md) for details.
+- **Additional providers:** Google Gemini, Cohere, llama.cpp (local models)
+- **More tools:** write_file, edit_file, bash, grep, glob
+- **Approval system:** User confirmation for dangerous operations
+- **Mode enforcement:** Ask/Plan/Build mode restrictions
+- **Comprehensive testing:** 90%+ coverage with unit and integration tests
+- **Performance optimizations:** Context pruning, connection pooling, caching
 
 ## License
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**goop** is an AI Coding Agent built as a monorepo with separate frontend and backend packages. The backend uses Hono + Drizzle ORM + PostgreSQL + Anthropic API, while the frontend is built with React + Vite + TailwindCSS + Zustand.
+**goop** is an AI Coding Agent built as a monorepo with separate frontend and backend packages. The backend uses Hono + Drizzle ORM + PostgreSQL + AI Provider APIs (Anthropic Claude & OpenAI GPT), while the frontend is built with React + Vite + TailwindCSS + Zustand.
 
 ## Project Status
 
@@ -31,6 +31,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Phase 4 (Anthropic Provider & Tool System)**: Complete
 - Abstract provider interface for AI integrations
 - Anthropic Claude provider with streaming support
+- OpenAI GPT provider with streaming support
 - Tool execution system with security constraints
 - Read file tool implementation
 - Tool registry with Zod schema validation
@@ -169,6 +170,7 @@ This is a Bun workspace monorepo where each package in `packages/` is independen
 - **zod-to-json-schema** (^3.22.0) - Convert Zod schemas to JSON Schema for AI tools
 - **Dotenv** (^17.2.3) - Environment variable loading from root .env
 - **Anthropic SDK** (^0.24.0) - Claude API integration with streaming support
+- **OpenAI SDK** (^6.9.1) - GPT API integration with streaming support
 
 **File Structure:**
 ```
@@ -185,7 +187,9 @@ src/
 │   └── migrations/       # Generated SQL migration files
 ├── providers/
 │   ├── base.ts           # Abstract provider interface
-│   └── anthropic.ts      # Claude API integration with streaming
+│   ├── index.ts          # Provider registry and utilities
+│   ├── anthropic.ts      # Claude API integration with streaming
+│   └── openai.ts         # GPT API integration with streaming
 ├── session/
 │   └── index.ts          # Session manager orchestrating conversations
 ├── streaming/
@@ -194,6 +198,9 @@ src/
 │   ├── base.ts           # Tool interface definition
 │   ├── index.ts          # Tool registry and execution
 │   └── read.ts           # Read file tool implementation
+├── utils/
+│   ├── security.ts       # Security utilities for path validation
+│   └── validation.ts     # API key validation utilities
 └── index.ts              # Hono server entry point
 ```
 
@@ -223,10 +230,12 @@ src/
 
 5. **Provider System**:
    - Abstract `Provider` interface in `src/providers/base.ts`
-   - Current implementation: Anthropic Claude (claude-3-5-sonnet-20241022)
+   - Provider registry in `src/providers/index.ts` with utilities for provider creation and info
+   - Current implementations: Anthropic Claude and OpenAI GPT
    - Providers expose async generator for streaming responses
    - Streaming events: text deltas, tool use, and completion
-   - Future-ready for OpenAI, Google, and local model providers
+   - Provider and model are configurable per session and stored in database
+   - Future-ready for Google Gemini and local model providers
 
 6. **Tool System**:
    - Tools define name, description, and Zod input schema
@@ -270,7 +279,8 @@ src/
 ├── components/
 │   ├── InputBox.tsx      # Message input with send button and auto-focus
 │   ├── SessionSwitcher.tsx # Dropdown menu for switching between sessions
-│   ├── SetupModal.tsx    # Session setup modal for title and working directory
+│   ├── SetupModal.tsx    # Session setup modal for title, working directory, provider, and model
+│   ├── SettingsModal.tsx # Settings modal for updating provider, model, and working directory
 │   └── Terminal.tsx      # Main message display component with auto-scroll
 ├── hooks/
 │   └── useSSE.ts         # Server-Sent Events hook for streaming
@@ -286,9 +296,9 @@ src/
 
 1. **State Management with Zustand**:
    - Single store in `src/stores/session.ts`
-   - Manages: sessionId, workingDirectory, messages array, streaming state, current text buffer
-   - Actions: setSessionId, setWorkingDirectory, addMessage, setMessages, appendText, finishStreaming, setStreaming, loadSession, clearSession, addToolUse, addToolResult, startNewMessage
-   - Persists session data to localStorage for page refresh
+   - Manages: sessionId, workingDirectory, provider, model, messages array, streaming state, current text buffer, current message parts
+   - Actions: setSessionId, setWorkingDirectory, setProvider, setModel, addMessage, setMessages, appendText, finishStreaming, setStreaming, loadSession, clearSession, addToolUse, addToolResult, startNewMessage
+   - Persists session data (including provider and model) to localStorage for page refresh
    - No prop drilling - components access state via hooks
 
 2. **Server-Sent Events (SSE)**:
@@ -311,12 +321,12 @@ src/
    - Accessibility features with ARIA labels and roles
 
 4. **API Client**:
-   - Functions: `createSession(workingDirectory, title)`, `getSession(id)`, `getAllSessions()`, `getMessages(sessionId)`, `sendMessage(sessionId, content)`
+   - Functions: `createSession(workingDirectory, title, provider, model, apiKey?)`, `getSession(id)`, `getAllSessions()`, `getMessages(sessionId)`, `sendMessage(sessionId, content)`, `updateSession(sessionId, updates)`
    - Base URL: `http://localhost:3001/api`
    - Returns JSON for REST calls
    - POST to `/sessions/:id/messages` triggers SSE stream
-   - Working directory stored in session and used for all file operations
-   - SessionInfo type includes: id, title, workingDirectory, createdAt, updatedAt
+   - Working directory, provider, and model stored in session and used for all operations
+   - SessionInfo type includes: id, title, workingDirectory, provider, model, createdAt, updatedAt
 
 5. **Session Lifecycle**:
    - App checks localStorage for existing session on mount
@@ -355,6 +365,8 @@ The database uses three tables with UUID primary keys and cascade delete relatio
    - `id` (UUID, primary key)
    - `title` (text) - Session title
    - `working_directory` (text) - Base path for file operations
+   - `provider` (text) - LLM provider name (default: "anthropic")
+   - `model` (text) - Model identifier (default: "claude-3-5-haiku-latest")
    - `created_at` (timestamp)
    - `updated_at` (timestamp)
 
@@ -415,6 +427,7 @@ The root `tsconfig.json` uses modern TypeScript settings:
 - Cascade deletes are configured: deleting a session deletes all messages and parts
 - All IDs are UUIDs with `gen_random_uuid()` defaults
 - Migration 0001_premium_vapor.sql added `working_directory` column with default value for existing sessions
+- Migration 0002_blue_wendigo.sql added `provider` and `model` columns to sessions table
 
 ## API Endpoints
 
@@ -462,10 +475,11 @@ The backend exposes the following REST and SSE endpoints:
 4. Update `src/session/index.ts` to support provider selection (future enhancement)
 5. Add provider configuration to `src/config/index.ts`
 
-**Current Provider:**
-- Anthropic Claude (claude-3-5-sonnet-20241022)
-- Streaming via Anthropic SDK
-- Supports tool calling with automatic JSON schema conversion via zod-to-json-schema
+**Current Providers:**
+- **Anthropic Claude** - Streaming via Anthropic SDK with tool calling support
+- **OpenAI GPT** - Streaming via OpenAI SDK with tool calling support
+- Both support automatic JSON schema conversion via zod-to-json-schema
+- Provider selection is per-session and stored in database
 
 ## LLM Provider Selection
 
@@ -578,11 +592,11 @@ bun run test
 
 **Planned Features (Future Phases):**
 
-**Phase 7: Additional Providers**
-- OpenAI GPT-4 integration
-- Google Gemini support
-- Local llama.cpp models
-- Provider selection in UI
+**Phase 7: Additional Providers** (Partially Complete - OpenAI integrated)
+- ✅ OpenAI GPT integration with full streaming support
+- ✅ Provider selection in UI (SetupModal and SettingsModal)
+- ⏳ Google Gemini support
+- ⏳ Local llama.cpp models
 
 **Phase 8: Extended Tool Set**
 - `write_file` - Create/overwrite files
