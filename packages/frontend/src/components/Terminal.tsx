@@ -14,7 +14,7 @@ export function Terminal() {
   }, [messages, currentText, currentParts, isStreaming]);
 
   return (
-    <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 pb-24 space-y-4">
+    <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 pt-16 pb-24 space-y-4">
       {messages.map((msg) => (
         <div key={msg.id} className="space-y-2">
           <div
