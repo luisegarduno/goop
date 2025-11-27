@@ -7,6 +7,7 @@ export function SessionSwitcher() {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { sessionId, loadSession } = useSessionStore();
 
@@ -57,6 +58,7 @@ export function SessionSwitcher() {
     }
 
     setLoading(true);
+    setError(null); // Clear any previous error
     try {
       // Fetch messages for the selected session
       const messages = await getMessages(session.id);
@@ -71,6 +73,7 @@ export function SessionSwitcher() {
       setIsOpen(false);
     } catch (error) {
       console.error("Failed to switch session:", error);
+      setError("Failed to switch session. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -116,6 +119,20 @@ export function SessionSwitcher() {
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 bg-zinc-900 border border-zinc-700 rounded-md shadow-lg max-h-96 overflow-y-auto z-50">
+          {error && (
+            <div className="px-4 py-3 bg-red-900/50 border-b border-red-700 text-red-200 text-sm flex items-center justify-between gap-2">
+              <span>{error}</span>
+              <button
+                onClick={() => setError(null)}
+                className="text-red-300 hover:text-red-100 transition-colors"
+                aria-label="Dismiss error"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" role="img" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
           {sessions.length === 0 ? (
             <div className="px-4 py-3 text-zinc-500 text-sm">No sessions found</div>
           ) : (
