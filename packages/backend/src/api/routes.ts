@@ -108,17 +108,28 @@ apiRoutes.post("/providers/validate", async (c) => {
   return c.json({ error: "Unknown provider" }, 400);
 });
 
-// Get API key from environment for a provider
+// Get masked API key from environment for a provider
+// Returns a masked version (e.g., "sk-ant-***...***xyz") for security
 apiRoutes.get("/providers/:name/api-key", async (c) => {
   const providerName = c.req.param("name") as "anthropic" | "openai";
 
   try {
+    const { maskApiKey } = await import("../utils/security");
+
     if (providerName === "anthropic") {
       const apiKey = process.env.ANTHROPIC_API_KEY;
-      return c.json({ apiKey: apiKey || null });
+      const maskedKey = maskApiKey(apiKey);
+      return c.json({
+        apiKey: maskedKey,
+        isConfigured: !!apiKey
+      });
     } else if (providerName === "openai") {
       const apiKey = process.env.OPENAI_API_KEY;
-      return c.json({ apiKey: apiKey || null });
+      const maskedKey = maskApiKey(apiKey);
+      return c.json({
+        apiKey: maskedKey,
+        isConfigured: !!apiKey
+      });
     } else {
       return c.json({ error: "Unknown provider" }, 400);
     }
