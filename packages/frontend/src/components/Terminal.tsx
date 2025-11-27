@@ -1,6 +1,17 @@
 import { useEffect, useRef } from "react";
 import { useSessionStore } from "../stores/session";
 
+/**
+ * Truncates a string to a maximum length, respecting character boundaries.
+ * @param str - The string to truncate
+ * @param maxLength - Maximum number of characters
+ * @returns Truncated string with ellipsis if needed
+ */
+function truncateString(str: string, maxLength: number): string {
+  if (str.length <= maxLength) return str;
+  return str.slice(0, maxLength) + "...";
+}
+
 export function Terminal() {
   const { messages, currentText, currentParts, isStreaming } = useSessionStore();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -45,7 +56,7 @@ export function Terminal() {
                 )}
                 {part.type === "tool_result" && (
                   <div className="text-terminal-tool opacity-70">
-                    → {part.result?.substring(0, 100)}...
+                    → {truncateString(part.result || "", 200)}
                   </div>
                 )}
               </div>
@@ -68,7 +79,7 @@ export function Terminal() {
               )}
               {part.type === "tool_result" && (
                 <div className="text-terminal-tool opacity-70">
-                  → {part.result?.substring(0, 100)}...
+                  → {truncateString(part.result || "", 200)}
                 </div>
               )}
             </div>
