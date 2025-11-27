@@ -10,16 +10,25 @@ export function SessionSwitcher() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { sessionId, loadSession } = useSessionStore();
 
+  const fetchSessions = async () => {
+    try {
+      const allSessions = await getAllSessions();
+      setSessions(allSessions);
+    } catch (error) {
+      console.error("Failed to fetch sessions:", error);
+    }
+  };
+
   useEffect(() => {
-    // Fetch sessions when component mounts
-    const fetchSessions = async () => {
-      try {
-        const allSessions = await getAllSessions();
-        setSessions(allSessions);
-      } catch (error) {
-        console.error("Failed to fetch sessions:", error);
-      }
-    };
+    // Fetch sessions when dropdown is opened to ensure fresh data
+    // This handles the stale data issue when switching sessions or after updates
+    if (isOpen) {
+      fetchSessions();
+    }
+  }, [isOpen]);
+
+  // Initial fetch on mount for faster perceived loading
+  useEffect(() => {
     fetchSessions();
   }, []);
 
