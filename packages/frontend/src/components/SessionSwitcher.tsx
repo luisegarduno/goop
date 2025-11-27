@@ -207,7 +207,6 @@ export function SessionSwitcher() {
           aria-activedescendant={focusedIndex >= 0 ? `session-${sessions[focusedIndex]?.id}` : undefined}
           onKeyDown={handleDropdownKeyDown}
         >
-        <div className="absolute right-0 mt-2 w-80 bg-zinc-900 border border-zinc-700 rounded-md shadow-lg max-h-96 overflow-y-auto z-50">
           {error && (
             <div className="px-4 py-3 bg-red-900/50 border-b border-red-700 text-red-200 text-sm flex items-center justify-between gap-2">
               <span>{error}</span>
