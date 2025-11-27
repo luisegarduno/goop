@@ -25,13 +25,14 @@ export const AVAILABLE_PROVIDERS: ProviderInfo[] = [
 
 export function createProvider(
   providerName: ProviderName,
-  model: string
+  model: string,
+  apiKey?: string
 ): Provider {
   switch (providerName) {
     case "anthropic":
-      return new AnthropicProvider(model);
+      return new AnthropicProvider(model, apiKey);
     case "openai":
-      return new OpenAIProvider(model);
+      return new OpenAIProvider(model, apiKey);
     default:
       throw new Error(`Unknown provider: ${providerName}`);
   }

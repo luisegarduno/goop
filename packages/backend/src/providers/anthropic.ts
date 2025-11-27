@@ -32,7 +32,7 @@ export class AnthropicProvider implements Provider {
   private client: Anthropic;
   private model: string;
 
-  constructor(model: string = "claude-3-5-haiku-latest") {
+  constructor(model: string = "claude-3-5-haiku-latest", apiKey?: string) {
     // Validate model is in allowed list
     if (!ANTHROPIC_MODELS.includes(model as any)) {
       throw new Error(
@@ -40,9 +40,13 @@ export class AnthropicProvider implements Provider {
       );
     }
 
-    const config = loadConfig();
+    // Use provided API key or fall back to environment variable via config
+    const key = apiKey || loadConfig().anthropic.apiKey;
+    if (!key) {
+      throw new Error("ANTHROPIC_API_KEY is required");
+    }
     this.client = new Anthropic({
-      apiKey: config.anthropic.apiKey,
+      apiKey: key,
     });
     this.model = model;
   }
