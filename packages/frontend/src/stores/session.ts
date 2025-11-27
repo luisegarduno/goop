@@ -17,12 +17,16 @@ interface Message {
 interface SessionStore {
   sessionId: string | null;
   workingDirectory: string | null;
+  provider: string | null;
+  model: string | null;
   messages: Message[];
   isStreaming: boolean;
   currentText: string;
   currentParts: MessagePart[];
   setSessionId: (id: string) => void;
   setWorkingDirectory: (dir: string) => void;
+  setProvider: (provider: string) => void;
+  setModel: (model: string) => void;
   addMessage: (message: Message) => void;
   setMessages: (messages: Message[]) => void;
   appendText: (text: string) => void;
@@ -32,12 +36,14 @@ interface SessionStore {
   finishStreaming: () => void;
   setStreaming: (streaming: boolean) => void;
   clearSession: () => void;
-  loadSession: (id: string, workingDir: string, messages: Message[]) => void;
+  loadSession: (id: string, workingDir: string, provider: string, model: string, messages: Message[]) => void;
 }
 
 export const useSessionStore = create<SessionStore>((set) => ({
   sessionId: null,
   workingDirectory: null,
+  provider: null,
+  model: null,
   messages: [],
   isStreaming: false,
   currentText: "",
@@ -51,6 +57,14 @@ export const useSessionStore = create<SessionStore>((set) => ({
     set({ workingDirectory: dir });
     // Persist to localStorage
     localStorage.setItem("goop_working_directory", dir);
+  },
+  setProvider: (provider) => {
+    set({ provider });
+    localStorage.setItem("goop_provider", provider);
+  },
+  setModel: (model) => {
+    set({ model });
+    localStorage.setItem("goop_model", model);
   },
   addMessage: (message) =>
     set((state) => ({ messages: [...state.messages, message] })),
@@ -126,14 +140,18 @@ export const useSessionStore = create<SessionStore>((set) => ({
     }),
   setStreaming: (streaming) => set({ isStreaming: streaming }),
   clearSession: () => {
-    set({ sessionId: null, workingDirectory: null, messages: [], currentText: "", currentParts: [], isStreaming: false });
+    set({ sessionId: null, workingDirectory: null, provider: null, model: null, messages: [], currentText: "", currentParts: [], isStreaming: false });
     localStorage.removeItem("goop_session_id");
     localStorage.removeItem("goop_working_directory");
+    localStorage.removeItem("goop_provider");
+    localStorage.removeItem("goop_model");
   },
-  loadSession: (id, workingDir, messages) => {
+  loadSession: (id, workingDir, provider, model, messages) => {
     set({
       sessionId: id,
       workingDirectory: workingDir,
+      provider,
+      model,
       messages,
       currentText: "",
       currentParts: [],
@@ -142,5 +160,7 @@ export const useSessionStore = create<SessionStore>((set) => ({
     // Persist to localStorage
     localStorage.setItem("goop_session_id", id);
     localStorage.setItem("goop_working_directory", workingDir);
+    localStorage.setItem("goop_provider", provider);
+    localStorage.setItem("goop_model", model);
   },
 }));

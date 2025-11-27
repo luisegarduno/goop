@@ -2,17 +2,28 @@ import { useEffect, useState } from "react";
 import { Terminal } from "./components/Terminal";
 import { InputBox } from "./components/InputBox";
 import { SetupModal } from "./components/SetupModal";
+import { SettingsModal } from "./components/SettingsModal";
 import { SessionSwitcher } from "./components/SessionSwitcher";
-import { useSSE } from "./hooks/useSSE";
 import { useSessionStore } from "./stores/session";
-import { createSession, getSession, getMessages } from "./api/client";
+import { createSession, getSession, getMessages, updateSession } from "./api/client";
 import "./styles/index.css";
 
 function App() {
-  const { sessionId, setSessionId, setWorkingDirectory, addMessage, setMessages, clearSession } = useSessionStore();
+  const {
+    sessionId,
+    workingDirectory,
+    provider,
+    model,
+    setSessionId,
+    setWorkingDirectory,
+    setProvider,
+    setModel,
+    addMessage,
+    setMessages,
+    clearSession,
+  } = useSessionStore();
   const [showSetup, setShowSetup] = useState(false);
-
-  useSSE(sessionId);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     // Try to restore session from localStorage
@@ -31,6 +42,8 @@ function App() {
           // Restore session - use backend's working directory as source of truth
           setSessionId(savedSessionId);
           setWorkingDirectory(session.workingDirectory);
+          setProvider(session.provider);
+          setModel(session.model);
           setMessages(messages);
 
           if (import.meta.env.DEV) {
@@ -51,23 +64,76 @@ function App() {
 
     restoreSession();
     // Zustand store actions are stable references; including them for clarity and future-proofing.
-  }, [setSessionId, setWorkingDirectory, setMessages, clearSession]);
+  }, [setSessionId, setWorkingDirectory, setProvider, setModel, setMessages, clearSession]);
 
-  const handleSetupComplete = async (dir: string, title: string) => {
+  const handleSetupComplete = async (
+    dir: string,
+    title: string,
+    provider: string,
+    model: string,
+    apiKey: string
+  ) => {
     setShowSetup(false);
 
     try {
-      // Create new session with working directory and title
-      const session = await createSession(dir, title);
+      // Create new session with all settings
+      const session = await createSession(dir, title, provider, model, apiKey);
       setSessionId(session.id);
-      setWorkingDirectory(dir); // Set after successful session creation
+      setWorkingDirectory(dir);
+      setProvider(provider);
+      setModel(model);
       if (import.meta.env.DEV) {
-        console.log(`Created new session "${title}" (${session.id}) with working directory: ${dir}`);
+        console.log(
+          `Created new session "${title}" (${session.id}) with ${provider}/${model} in ${dir}`
+        );
       }
     } catch (error) {
       console.error("Failed to create session:", error);
-      clearSession(); // Clear both session and working directory
-      setShowSetup(true); // Show modal again
+      clearSession();
+      setShowSetup(true);
+    }
+  };
+
+  const handleSettingsSave = async (
+    newProvider: string,
+    newModel: string,
+    apiKey: string,
+    workingDirectory: string
+  ) => {
+    if (!sessionId) return;
+
+    try {
+      // Check if provider is changing
+      const providerChanged = provider && provider !== newProvider;
+
+      const updatedSession = await updateSession(sessionId, {
+        provider: newProvider,
+        model: newModel,
+        workingDirectory,
+        apiKey,
+      });
+
+      // Update store with new settings
+      setProvider(updatedSession.provider);
+      setModel(updatedSession.model);
+      setWorkingDirectory(updatedSession.workingDirectory);
+
+      // Clear messages if provider changed (backend also clears them)
+      if (providerChanged) {
+        setMessages([]);
+        if (import.meta.env.DEV) {
+          console.log(`Provider changed - conversation history cleared`);
+        }
+      }
+
+      if (import.meta.env.DEV) {
+        console.log(
+          `Updated session settings: ${updatedSession.provider}/${updatedSession.model}`
+        );
+      }
+    } catch (error) {
+      console.error("Failed to update session:", error);
+      throw error;
     }
   };
 
@@ -153,6 +219,33 @@ function App() {
       {/* Session Switcher & New Session Button - Top Right Corner */}
       {sessionId && (
         <div className="absolute top-4 right-4 z-40 flex gap-2">
+          {/* Settings Button */}
+          <button
+            onClick={() => setShowSettings(true)}
+            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md border border-zinc-700 transition-colors flex items-center gap-2"
+            title="Session settings"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+            <span className="text-sm">Settings</span>
+          </button>
           <button
             onClick={() => {
               clearSession();
@@ -174,6 +267,17 @@ function App() {
         <Terminal />
       </div>
       <InputBox onSend={handleSend} />
+
+      {/* Settings Modal */}
+      {showSettings && sessionId && provider && model && workingDirectory && (
+        <SettingsModal
+          currentProvider={provider}
+          currentModel={model}
+          currentWorkingDirectory={workingDirectory}
+          onClose={() => setShowSettings(false)}
+          onSave={handleSettingsSave}
+        />
+      )}
     </div>
   );
 }
