@@ -111,28 +111,24 @@ apiRoutes.post("/providers/validate", async (c) => {
 // Get masked API key from environment for a provider
 // Returns a masked version (e.g., "sk-ant-***...***xyz") for security
 apiRoutes.get("/providers/:name/api-key", async (c) => {
-  const providerName = c.req.param("name") as "anthropic" | "openai";
+  const providerName = c.req.param("name");
+
+  if (providerName !== "anthropic" && providerName !== "openai") {
+    return c.json({ error: "Unknown provider" }, 400);
+  }
 
   try {
     const { maskApiKey } = await import("../utils/security");
 
-    if (providerName === "anthropic") {
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      const maskedKey = maskApiKey(apiKey);
-      return c.json({
-        apiKey: maskedKey,
-        isConfigured: !!apiKey
-      });
-    } else if (providerName === "openai") {
-      const apiKey = process.env.OPENAI_API_KEY;
-      const maskedKey = maskApiKey(apiKey);
-      return c.json({
-        apiKey: maskedKey,
-        isConfigured: !!apiKey
-      });
-    } else {
-      return c.json({ error: "Unknown provider" }, 400);
-    }
+    const apiKey =
+      providerName === "anthropic"
+        ? process.env.ANTHROPIC_API_KEY
+        : process.env.OPENAI_API_KEY;
+    const maskedKey = maskApiKey(apiKey);
+    return c.json({
+      apiKey: maskedKey,
+      isConfigured: !!apiKey,
+    });
   } catch (error: any) {
     console.error(`[API] Failed to get API key for ${providerName}:`, error.message);
     return c.json({ error: "Failed to retrieve API key" }, 500);
