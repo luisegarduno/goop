@@ -1,14 +1,8 @@
 import { useState, useEffect } from "react";
-import { API_BASE } from "../api/client";
+import { API_BASE, createSession } from "../api/client";
 
 interface SetupModalProps {
-  onComplete: (
-    workingDirectory: string,
-    title: string,
-    provider: string,
-    model: string,
-    apiKey: string
-  ) => void;
+  onComplete: (sessionId: string, workingDirectory: string, provider: string, model: string) => void;
 }
 
 interface Provider {
@@ -22,12 +16,16 @@ export function SetupModal({ onComplete }: SetupModalProps) {
   const [provider, setProvider] = useState<string>("anthropic");
   const [model, setModel] = useState<string>("");
   const [apiKey, setApiKey] = useState<string>("");
+  const [maskedKey, setMaskedKey] = useState<string | null>(null);
+  const [keyConfiguredInEnv, setKeyConfiguredInEnv] = useState(false);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [models, setModels] = useState<string[]>([]);
   const [validatingKey, setValidatingKey] = useState(false);
   const [keyValidated, setKeyValidated] = useState(false);
   const [validationError, setValidationError] = useState<string>("");
   const [loadingModels, setLoadingModels] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string>("");
 
   // Fetch available providers on mount
   useEffect(() => {
@@ -69,17 +67,18 @@ export function SetupModal({ onComplete }: SetupModalProps) {
         setLoadingModels(false);
       });
 
-    // Fetch and pre-populate API key from .env
+    // Fetch masked API key info from .env (for display only, not used for authentication)
     fetch(`${API_BASE}/providers/${provider}/api-key`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.apiKey) {
-          setApiKey(data.apiKey);
-          // Don't auto-validate, let user validate manually
-        }
+        setMaskedKey(data.apiKey);
+        setKeyConfiguredInEnv(data.isConfigured || false);
+        // Don't pre-populate the input field - user must manually enter or validate
       })
       .catch((error) => {
-        console.error("Failed to fetch API key:", error);
+        console.error("Failed to fetch API key info:", error);
+        setMaskedKey(null);
+        setKeyConfiguredInEnv(false);
       });
   }, [provider]);
 
@@ -117,26 +116,56 @@ export function SetupModal({ onComplete }: SetupModalProps) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (
-      workingDirectory.trim() &&
-      title.trim() &&
-      provider &&
-      model &&
-      apiKey.trim()
-    ) {
-      if (!keyValidated) {
-        setValidationError("Please validate your API key first");
-        return;
-      }
-      onComplete(
+
+    // Validate required fields
+    if (!workingDirectory.trim() || !title.trim() || !provider || !model) {
+      return;
+    }
+
+    // If user entered a custom API key, it must be validated
+    if (apiKey.trim() && !keyValidated) {
+      setValidationError("Please validate your API key first");
+      return;
+    }
+
+    // If no custom key entered, check if one is configured in .env
+    if (!apiKey.trim() && !keyConfiguredInEnv) {
+      setValidationError("Please enter and validate an API key, or configure one in your .env file");
+      return;
+    }
+
+    // Create session
+    setSubmitting(true);
+    setSubmitError("");
+    setValidationError("");
+
+    try {
+      const session = await createSession(
         workingDirectory.trim(),
         title.trim(),
         provider,
         model,
         apiKey.trim()
       );
+
+      // Success - notify parent
+      onComplete(session.id, workingDirectory.trim(), provider, model);
+    } catch (error: any) {
+      console.error("Failed to create session:", error);
+
+      // Extract error message from response
+      let errorMessage = "Failed to create session";
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+
+      setSubmitError(errorMessage);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -241,7 +270,7 @@ export function SetupModal({ onComplete }: SetupModalProps) {
               htmlFor="apiKey"
               className="block text-gray-300 mb-2 text-sm"
             >
-              API Key:
+              API Key {keyConfiguredInEnv && <span className="text-gray-500">(Optional - configured in .env)</span>}:
             </label>
             <input
               id="apiKey"
@@ -253,7 +282,7 @@ export function SetupModal({ onComplete }: SetupModalProps) {
                 setValidationError("");
               }}
               className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-100 font-mono focus:outline-none focus:border-cyan-500"
-              placeholder={`${provider.toUpperCase()}_API_KEY`}
+              placeholder={keyConfiguredInEnv ? "Leave empty to use .env key" : `${provider.toUpperCase()}_API_KEY`}
             />
             <div className="flex items-center gap-2 mt-2">
               <button
@@ -286,25 +315,46 @@ export function SetupModal({ onComplete }: SetupModalProps) {
             {validationError && (
               <p className="text-red-400 text-xs mt-2">{validationError}</p>
             )}
-            <p className="text-gray-500 text-xs mt-2">
-              Your API key is validated but not stored. Ensure it's also in your
-              .env file.
-            </p>
+            {keyConfiguredInEnv && maskedKey && (
+              <p className="text-green-400 text-xs mt-2 flex items-start gap-1">
+                <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Key configured in .env: {maskedKey}. You can proceed without entering a key.</span>
+              </p>
+            )}
+            {!keyConfiguredInEnv && (
+              <p className="text-gray-500 text-xs mt-2">
+                Enter your API key and validate it. For convenience, add it to your .env file.
+              </p>
+            )}
           </div>
+
+          {/* Submit Error Display */}
+          {submitError && (
+            <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded text-red-200 text-sm">
+              {submitError}
+            </div>
+          )}
 
           {/* Submit Button */}
           <div className="flex justify-end gap-3">
             <button
               type="submit"
               disabled={
-                !keyValidated ||
+                submitting ||
                 loadingModels ||
                 !workingDirectory.trim() ||
-                !title.trim()
+                !title.trim() ||
+                !model ||
+                // Only require validation if user entered a custom key
+                (apiKey.trim() && !keyValidated) ||
+                // Require either a validated custom key OR an .env key
+                (!apiKey.trim() && !keyConfiguredInEnv)
               }
               className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Start Session
+              {submitting ? "Creating Session..." : "Start Session"}
             </button>
           </div>
         </form>

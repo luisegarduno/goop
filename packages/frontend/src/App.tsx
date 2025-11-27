@@ -5,7 +5,7 @@ import { SetupModal } from "./components/SetupModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { SessionSwitcher } from "./components/SessionSwitcher";
 import { useSessionStore } from "./stores/session";
-import { createSession, getSession, getMessages, updateSession, API_BASE } from "./api/client";
+import { getSession, getMessages, updateSession, API_BASE } from "./api/client";
 import "./styles/index.css";
 
 function App() {
@@ -66,31 +66,23 @@ function App() {
     // Zustand store actions are stable references; including them for clarity and future-proofing.
   }, [setSessionId, setWorkingDirectory, setProvider, setModel, setMessages, clearSession]);
 
-  const handleSetupComplete = async (
+  const handleSetupComplete = (
+    sessionId: string,
     dir: string,
-    title: string,
     provider: string,
-    model: string,
-    apiKey: string
+    model: string
   ) => {
+    // Session already created by SetupModal
     setShowSetup(false);
+    setSessionId(sessionId);
+    setWorkingDirectory(dir);
+    setProvider(provider);
+    setModel(model);
 
-    try {
-      // Create new session with all settings
-      const session = await createSession(dir, title, provider, model, apiKey);
-      setSessionId(session.id);
-      setWorkingDirectory(dir);
-      setProvider(provider);
-      setModel(model);
-      if (import.meta.env.DEV) {
-        console.log(
-          `Created new session "${title}" (${session.id}) with ${provider}/${model} in ${dir}`
-        );
-      }
-    } catch (error) {
-      console.error("Failed to create session:", error);
-      clearSession();
-      setShowSetup(true);
+    if (import.meta.env.DEV) {
+      console.log(
+        `Session created: ${sessionId} with ${provider}/${model} in ${dir}`
+      );
     }
   };
 
