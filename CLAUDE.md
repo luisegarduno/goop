@@ -424,7 +424,7 @@ The backend exposes the following REST and SSE endpoints:
 - `GET /health` - Health check (returns `{ status: "ok" }`)
 - `GET /api/providers` - List available AI providers
 - `GET /api/providers/:name/models` - Get models for specific provider
-- `GET /api/providers/:name/api-key` - Get API key from .env for provider (returns actual key for pre-population)
+- `GET /api/providers/:name/api-key` - Get masked API key from .env for provider (returns masked key for display)
 - `POST /api/providers/validate` - Validate API key for provider
 - `POST /api/sessions` - Create new session
   - Request body: `{ title?, workingDirectory, provider, model, apiKey? }`
