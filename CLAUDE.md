@@ -477,7 +477,7 @@ The backend exposes the following REST and SSE endpoints:
 1. Both providers require API keys in `.env` file
 2. API keys are validated during session creation and settings updates
 3. Keys are NOT stored in the database (validation only)
-4. Keys are pre-populated from .env in modals for user convenience
+4. Modals display a masked version of the API key (from .env) below the input field for user reference; the input field itself is NOT pre-populated, and users must manually enter their key to validate or update it
 5. Session manager loads provider/model dynamically per session
 
 **Model Lists:**
