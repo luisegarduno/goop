@@ -1,7 +1,17 @@
 import { Tool } from "./base";
 import { ReadFileTool } from "./read";
+import { WriteFileTool } from "./write";
+import { EditFileTool } from "./edit";
+import { GrepTool } from "./grep";
+import { GlobTool } from "./glob";
 
-export const tools: Tool[] = [new ReadFileTool()];
+export const tools: Tool[] = [
+  new ReadFileTool(),
+  new WriteFileTool(),
+  new EditFileTool(),
+  new GrepTool(),
+  new GlobTool(),
+];
 
 export function getToolDefinitions() {
   return tools.map((tool) => ({
