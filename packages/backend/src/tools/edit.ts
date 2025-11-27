@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Tool, ToolContext } from "./base";
 import { readFile, writeFile } from "fs/promises";
-import { resolve } from "path";
+import { resolve, sep } from "path";
 
 export const EditFileInputSchema = z.object({
   path: z
@@ -21,10 +21,11 @@ export class EditFileTool implements Tool<EditFileInput> {
 
   async execute(input: EditFileInput, context: ToolContext): Promise<string> {
     try {
+      const normalizedWorkingDir = resolve(context.workingDir);
       const filePath = resolve(context.workingDir, input.path);
 
       // Security: ensure we don't edit outside working directory
-      if (!filePath.startsWith(context.workingDir)) {
+      if (!filePath.startsWith(normalizedWorkingDir + sep)) {
         throw new Error(
           "Access denied: cannot edit files outside working directory"
         );

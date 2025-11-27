@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Tool, ToolContext } from "./base";
-import { relative } from "path";
+import { relative, resolve, sep } from "path";
 import fg from "fast-glob";
 
 export const GlobInputSchema = z.object({
@@ -35,8 +35,10 @@ export class GlobTool implements Tool<GlobInput> {
       });
 
       // Security: ensure all matches are within working directory
+      const normalizedWorkingDir = resolve(context.workingDir);
       for (const match of matches) {
-        if (!match.startsWith(context.workingDir)) {
+        const normalizedPath = resolve(match);
+        if (!normalizedPath.startsWith(normalizedWorkingDir + sep)) {
           throw new Error(
             "Access denied: glob pattern matches paths outside working directory"
           );

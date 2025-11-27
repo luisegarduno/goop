@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Tool, ToolContext } from "./base";
 import { readFile } from "fs/promises";
-import { relative } from "path";
+import { resolve, relative, sep } from "path";
 import fg from "fast-glob";
 
 export const GrepInputSchema = z.object({
@@ -47,8 +47,10 @@ export class GrepTool implements Tool<GrepInput> {
       });
 
       // Security: ensure all files are within working directory
+      const normalizedWorkingDir = resolve(context.workingDir);
       for (const file of files) {
-        if (!file.startsWith(context.workingDir)) {
+        const normalizedPath = resolve(file);
+        if (!normalizedPath.startsWith(normalizedWorkingDir + sep)) {
           throw new Error(
             "Access denied: glob pattern matches files outside working directory"
           );
