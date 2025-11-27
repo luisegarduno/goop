@@ -120,9 +120,19 @@ export class OpenAIProvider implements Provider {
 
       if (!msg) continue;
 
-      flatMessages.push(openaiMsg);
+      // Check if this is a user message with ONLY tool results (no text content)
+      const hasOnlyToolResults =
+        msg.role === "user" &&
+        msg.content.every((p) => p.type === "tool_result") &&
+        msg.content.some((p) => p.type === "tool_result");
 
-      // Add tool result messages after assistant tool calls
+      // Only add the message if it's not a tool-result-only user message
+      // (we'll add those as separate tool messages below)
+      if (!hasOnlyToolResults) {
+        flatMessages.push(openaiMsg);
+      }
+
+      // Add tool result messages after the previous assistant message
       const toolResults = msg.content.filter((p) => p.type === "tool_result");
       for (const toolResult of toolResults) {
         flatMessages.push({
@@ -148,6 +158,21 @@ export class OpenAIProvider implements Provider {
         },
       };
     });
+
+    // Debug logging for message sequence
+    console.log(
+      "[OpenAIProvider] Sending messages:",
+      JSON.stringify(
+        flatMessages.map((m) => ({
+          role: m.role,
+          hasContent: !!m.content,
+          hasToolCalls: !!m.tool_calls,
+          toolCallId: m.tool_call_id,
+        })),
+        null,
+        2
+      )
+    );
 
     try {
       const stream = await this.client.chat.completions.create({
