@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Tool, ToolContext } from "./base";
 import { readFile } from "fs/promises";
-import { resolve, relative } from "path";
+import { relative } from "path";
 import fg from "fast-glob";
 
 export const GrepInputSchema = z.object({
