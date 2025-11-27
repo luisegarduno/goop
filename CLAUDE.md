@@ -33,7 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Anthropic Claude provider with streaming support
 - OpenAI GPT provider with streaming support
 - Tool execution system with security constraints
-- Read file tool implementation
+- Comprehensive tool set (read, write, edit, grep, glob)
 - Tool registry with Zod schema validation
 
 **Phase 5 (Session Manager & Streaming Integration)**: Complete
@@ -106,10 +106,12 @@ This project uses **Bun** as the runtime and package manager. All commands shoul
 
 3. Use the application:
    - On first load, a setup modal will appear prompting for session title and working directory
-   - Working directory determines the base path for file operations (e.g., read_file tool)
+   - Working directory determines the base path for file operations (e.g., read_file, write_file, edit_file tools)
    - Type messages in the terminal-style input box
    - See AI responses stream in real-time
    - Ask Claude to read files: "Can you read the package.json file?"
+   - Ask Claude to edit files: "Can you update the version in package.json?"
+   - Ask Claude to search: "Can you find all occurrences of 'TODO' in the codebase?"
    - All conversation history and session settings are persisted in PostgreSQL
    - Session data (including working directory) is also saved to localStorage for restoration
 
@@ -171,6 +173,7 @@ This is a Bun workspace monorepo where each package in `packages/` is independen
 - **Dotenv** (^17.2.3) - Environment variable loading from root .env
 - **Anthropic SDK** (^0.24.0) - Claude API integration with streaming support
 - **OpenAI SDK** (^6.9.1) - GPT API integration with streaming support
+- **fast-glob** (^3.3.3) - Fast file system globbing for grep and glob tools
 
 **File Structure:**
 ```
@@ -197,7 +200,11 @@ src/
 ├── tools/
 │   ├── base.ts           # Tool interface definition
 │   ├── index.ts          # Tool registry and execution
-│   └── read.ts           # Read file tool implementation
+│   ├── read.ts           # Read file tool implementation
+│   ├── write.ts          # Write file tool implementation
+│   ├── edit.ts           # Edit file tool implementation
+│   ├── grep.ts           # Grep tool implementation
+│   └── glob.ts           # Glob tool implementation
 ├── utils/
 │   ├── security.ts       # Security utilities for path validation
 │   └── validation.ts     # API key validation utilities
@@ -240,10 +247,10 @@ src/
 6. **Tool System**:
    - Tools define name, description, and Zod input schema
    - Tool execution requires `ToolContext` with workingDir from session
-   - Security: Read tool validates paths stay within working directory
+   - Security: All file tools validate paths stay within working directory
    - Working directory is set per-session and stored in database
    - Registry at `src/tools/index.ts` exports all available tools
-   - Currently implemented: `read_file` tool for reading local files
+   - Currently implemented: `read_file`, `write_file`, `edit_file`, `grep`, and `glob` tools
 
 7. **Session Manager**:
    - Located in `src/session/index.ts`
@@ -555,6 +562,10 @@ The backend exposes the following REST and SSE endpoints:
 
 **Current Tools:**
 - `read_file` - Read local file contents with path validation
+- `write_file` - Write content to a file, creating it if it doesn't exist or overwriting if it does
+- `edit_file` - Edit a file by replacing an old string with a new string (exact match required, replaces all occurrences)
+- `grep` - Search for a regex pattern in files matching a glob pattern, with optional context lines
+- `glob` - Find files and optionally directories matching a glob pattern
 
 ## Testing
 
@@ -598,12 +609,12 @@ bun run test
 - ⏳ Google Gemini support
 - ⏳ Local llama.cpp models
 
-**Phase 8: Extended Tool Set**
-- `write_file` - Create/overwrite files
-- `edit_file` - Apply diff-based edits
-- `bash` - Execute shell commands (with approval)
-- `grep` - Search code with regex
-- `glob` - List files matching patterns
+**Phase 8: Extended Tool Set** (Partially Complete)
+- ✅ `write_file` - Create/overwrite files
+- ✅ `edit_file` - Apply string replacement edits
+- ✅ `grep` - Search code with regex
+- ✅ `glob` - List files matching patterns
+- ⏳ `bash` - Execute shell commands (with approval)
 
 **Phase 9: Approval System**
 - User approval for dangerous operations (write, edit, bash)

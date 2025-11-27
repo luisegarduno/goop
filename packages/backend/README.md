@@ -54,7 +54,11 @@ packages/backend/
 │   ├── tools/                # Tool system
 │   │   ├── base.ts           # Tool interface definition
 │   │   ├── index.ts          # Tool registry
-│   │   └── read.ts           # Read file tool implementation
+│   │   ├── read.ts           # Read file tool implementation
+│   │   ├── write.ts          # Write file tool implementation
+│   │   ├── edit.ts           # Edit file tool (string replacement)
+│   │   ├── grep.ts           # Search files with regex patterns
+│   │   └── glob.ts           # Find files matching glob patterns
 │   ├── session/              # Session management
 │   │   └── index.ts          # SessionManager (orchestrates AI + tools)
 │   ├── streaming/            # SSE utilities
@@ -434,6 +438,10 @@ interface Tool<TInput = any> {
 
 **Current Tools:**
 - **ReadFileTool** (`src/tools/read.ts`) - Reads file contents with path security checks
+- **WriteFileTool** (`src/tools/write.ts`) - Writes content to files, creating or overwriting with automatic directory creation
+- **EditFileTool** (`src/tools/edit.ts`) - Edits files by replacing exact string matches (replaces all occurrences)
+- **GrepTool** (`src/tools/grep.ts`) - Searches for regex patterns across files with glob filtering and optional context lines
+- **GlobTool** (`src/tools/glob.ts`) - Finds files and directories matching glob patterns with common ignores (node_modules, .git)
 
 **Tool Context:**
 ```typescript
@@ -805,11 +813,11 @@ curl http://localhost:3001/api/sessions/$SESSION/messages
 
 ## Next Steps
 
-This backend has completed the core foundation including multi-provider support. Future phases will add:
+This backend has completed the core foundation including multi-provider support and a comprehensive tool set. Future phases will add:
 
 - **Additional providers:** Google Gemini, Cohere, llama.cpp (local models)
-- **More tools:** write_file, edit_file, bash, grep, glob
-- **Approval system:** User confirmation for dangerous operations
+- **More tools:** bash (shell command execution)
+- **Approval system:** User confirmation for dangerous operations (write, edit, bash)
 - **Mode enforcement:** Ask/Plan/Build mode restrictions
 - **Comprehensive testing:** 90%+ coverage with unit and integration tests
 - **Performance optimizations:** Context pruning, connection pooling, caching

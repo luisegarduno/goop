@@ -13,7 +13,7 @@ goop is designed to be a lightweight, extensible AI coding agent that can:
 The project is structured as a Bun workspace monorepo with separate frontend and backend packages, featuring:
 
 - **Real-time AI streaming** via Server-Sent Events (SSE)
-- **Tool system** with file reading capabilities (extensible for more tools)
+- **Comprehensive tool system** with file operations, code search, and pattern matching
 - **Session management** with PostgreSQL persistence
 - **Terminal-like web interface** for seamless interaction
 - **Multi-provider AI support** with Anthropic Claude and OpenAI GPT integration
@@ -102,14 +102,14 @@ When you first open the application, you'll be greeted with a **Session Setup Mo
 4. **Model**: Select a specific model from the chosen provider (e.g., claude-sonnet-4-0, gpt-4)
 5. **API Key**: Validate your API key (optional if already configured in `.env`)
 
-The working directory determines which files the AI can access when using the `read_file` tool. File operations are restricted to this directory to help maintain security boundaries.
+The working directory determines which files the AI can access when using file operation tools (read, write, edit) and search tools (grep, glob). All operations are restricted to this directory to help maintain security boundaries.
 
 ### Basic Usage
 
 1. **Start a conversation**: After setting up your session, type a message in the input box at the bottom and press Enter or click "Send"
 2. **Watch the streaming response**: AI responses will appear in real-time as they're generated
-3. **Ask the AI to read files**: Try asking "Can you read the README.md file?" or "What's in the spec.md file?" (files must be within your configured working directory)
-4. **See tool usage**: When the AI uses the `read_file` tool, you'll see a visual indicator with the tool name
+3. **Use AI tools**: The AI can read files, write files, make edits, search code with grep, and find files with glob patterns
+4. **See tool usage**: When the AI uses tools (read_file, write_file, edit_file, grep, glob), you'll see visual indicators with the tool name and status
 5. **Continue the conversation**: All messages persist in the database, maintaining full conversation context
 
 ### Session Management
@@ -122,24 +122,50 @@ The working directory determines which files the AI can access when using the `r
 
 ### Example Interactions
 
-**Ask about files:**
+**Read and analyze files:**
 
 ```
 You: Can you read the package.json file and tell me what dependencies are installed?
+Assistant: [Uses read_file tool]
 ```
 
-**Request code analysis:**
+**Search for patterns in code:**
 
 ```
-You: Please read the src/db/schema.ts file and explain the database schema
+You: Find all TODO comments in TypeScript files
+Assistant: [Uses grep tool with pattern "TODO" and glob "**/*.ts"]
+```
+
+**Find files by pattern:**
+
+```
+You: List all TypeScript files in the src directory
+Assistant: [Uses glob tool with pattern "src/**/*.ts"]
+```
+
+**Create new files:**
+
+```
+You: Create a new file called config.json with some default settings
+Assistant: [Uses write_file tool]
+```
+
+**Edit existing files:**
+
+```
+You: In the README.md file, replace "Version 1.0" with "Version 2.0"
+Assistant: [Uses edit_file tool with old_string and new_string]
 ```
 
 **Multi-turn conversations:**
 
 ```
-You: What files are in the packages/backend/src directory?
-Assistant: [Uses read_file tool to explore]
-You: Great, now can you read the providers/anthropic.ts file?
+You: What TypeScript files are in the tools directory?
+Assistant: [Uses glob tool to find files]
+You: Great, now search for any TODO comments in those files
+Assistant: [Uses grep tool to search]
+You: Can you fix the TODO in read.ts by adding proper error handling?
+Assistant: [Uses read_file, then edit_file to make changes]
 ```
 
 ### Features in Action
@@ -184,7 +210,11 @@ goop/
 │   │   │   ├── tools/             # Tool system
 │   │   │   │   ├── base.ts        # Tool interface
 │   │   │   │   ├── index.ts       # Tool registry
-│   │   │   │   └── read.ts        # File reading tool
+│   │   │   │   ├── read.ts        # Read file tool
+│   │   │   │   ├── write.ts       # Write file tool
+│   │   │   │   ├── edit.ts        # Edit file tool
+│   │   │   │   ├── grep.ts        # Search with regex tool
+│   │   │   │   └── glob.ts        # Find files by pattern tool
 │   │   │   ├── session/           # Session management
 │   │   │   │   └── index.ts       # Session orchestration
 │   │   │   └── streaming/         # SSE event formatting
@@ -241,6 +271,8 @@ goop/
 | **Zod**                | ^3.25.76 | Schema validation             |
 | **zod-to-json-schema** | ^3.22.0  | Zod to JSON Schema conversion |
 | **@anthropic-ai/sdk**  | ^0.24.0  | Claude API integration        |
+| **openai**             | ^6.9.1   | GPT API integration           |
+| **fast-glob**          | ^3.3.3   | File pattern matching         |
 | **dotenv**             | ^17.2.3  | Environment config            |
 
 ### Frontend
@@ -408,7 +440,8 @@ The schema uses cascade deletion to maintain referential integrity - deleting a 
 - Anthropic Claude API integration with streaming
 - OpenAI GPT API integration with streaming
 - Tool system infrastructure (base interface, registry)
-- File reading tool with security constraints
+- Comprehensive tool suite (read, write, edit, grep, glob)
+- Security constraints for all file operations
 - Zod schema to JSON schema conversion for tool definitions
 - Real-time streaming event handling
 
@@ -435,11 +468,12 @@ The schema uses cascade deletion to maintain referential integrity - deleting a 
 - Session switcher dropdown with keyboard navigation
 - New session creation button
 
-### Phase 7: Integration & Testing - COMPLETE ✅
+### Phase 7: Multi-Provider Support - COMPLETE ✅
 
 - End-to-end integration of all components
 - SSE streaming between frontend and backend
-- Tool execution flow verification
+- OpenAI GPT provider integration with full streaming support
+- Provider and model selection in UI (SetupModal and SettingsModal)
 - Session persistence across page refreshes
 - Error handling throughout the stack
 - Setup script for quick onboarding
@@ -448,6 +482,16 @@ The schema uses cascade deletion to maintain referential integrity - deleting a 
 - Keyboard accessibility for all interactive elements
 - Date formatting (Today/Yesterday/relative dates)
 
+### Phase 8: Extended Tool Set - COMPLETE ✅
+
+- `write_file` tool - Create or overwrite files with content
+- `edit_file` tool - Apply exact string replacements in files
+- `grep` tool - Search files with regex patterns and context lines
+- `glob` tool - Find files matching glob patterns
+- Security constraints enforced for all tools (working directory validation)
+- Fast-glob integration for efficient file pattern matching
+- Comprehensive error handling for all file operations
+
 ## What's Working
 
 The application is fully functional with the following capabilities:
@@ -455,8 +499,13 @@ The application is fully functional with the following capabilities:
 1. **AI Conversations**: Chat with Claude or GPT through a terminal-like web interface
 2. **Multi-Provider Support**: Choose between Anthropic Claude and OpenAI GPT with model selection
 3. **Real-time Streaming**: See AI responses appear token by token as they're generated
-4. **Tool System**: AI can read files from your local filesystem using the `read_file` tool
-5. **Working Directory Security**: Each session has a configured working directory that constrains where files can be read
+4. **Comprehensive Tool System**: AI can interact with your filesystem using multiple tools:
+   - `read_file` - Read file contents
+   - `write_file` - Create or overwrite files
+   - `edit_file` - Apply exact string replacements
+   - `grep` - Search code with regex patterns and context lines
+   - `glob` - Find files matching glob patterns
+5. **Working Directory Security**: Each session has a configured working directory that constrains all file operations
 6. **Session Setup Modal**: Configure session title, working directory, provider, model, and API key through an intuitive interface
 7. **Settings Management**: Update provider, model, or working directory mid-conversation via Settings modal
 8. **Session Management UI**: Switch between existing sessions via dropdown, create new sessions with a single click
@@ -471,13 +520,15 @@ The application is fully functional with the following capabilities:
 While the core functionality is complete, future enhancements may include:
 
 - Additional AI providers (Google Gemini, local llama.cpp models)
-- More tools (write_file, edit_file, bash, grep, glob)
-- Approval system for dangerous operations
+- Additional tools (bash command execution, file deletion, directory operations)
+- Approval system for dangerous operations (write, edit, bash)
 - Mode system (Ask/Plan/Build) with different permission levels
 - Session deletion and renaming capabilities
 - Search/filter for sessions in the switcher
 - Comprehensive test coverage
 - Production deployment configuration
+- Context window management for long conversations
+- Multi-file diff/patch operations
 
 See `spec.md` for the complete roadmap and implementation details.
 
@@ -491,16 +542,17 @@ See `spec.md` for the complete roadmap and implementation details.
 4. ✅ **Phase 4: Provider Integration** - Anthropic Claude, OpenAI GPT, tool system
 5. ✅ **Phase 5: Session Management** - Conversation orchestration, SSE streaming
 6. ✅ **Phase 6: Frontend UI** - React terminal interface, provider/model selection
-7. ✅ **Phase 7: Integration & Testing** - End-to-end verification, setup automation
+7. ✅ **Phase 7: Multi-Provider Support** - OpenAI integration, provider/model selection UI
+8. ✅ **Phase 8: Extended Tool Set** - write_file, edit_file, grep, glob tools
 
 ### Future Enhancements
 
-8. **Additional Providers** - Google Gemini, local llama.cpp models
-9. **Extended Tool Suite** - write_file, edit_file, bash, grep, glob, and more
-10. **Approval System** - User confirmation for dangerous operations
-11. **Mode System** - Ask/Plan/Build modes with permission boundaries
-12. **Testing & CI/CD** - Comprehensive test coverage, automated deployment
-13. **Advanced Features** - Context window management, multi-file operations, code analysis
+9. **Approval System** - User confirmation for dangerous operations (write, edit, bash)
+10. **Additional Providers** - Google Gemini, local llama.cpp models
+11. **More Tools** - bash command execution, file deletion, directory operations
+12. **Mode System** - Ask/Plan/Build modes with permission boundaries
+13. **Testing & CI/CD** - Comprehensive test coverage, automated deployment
+14. **Advanced Features** - Context window management, multi-file operations, code analysis
 
 ## Architecture
 
@@ -512,7 +564,7 @@ goop follows a clean, event-driven architecture with clear separation of concern
 - **API Layer**: REST routes for session management, provider configuration, and message handling
 - **Session Manager**: Orchestrates conversations, manages context, and coordinates tool execution
 - **Provider System**: Abstract interface with concrete implementations (Anthropic Claude, OpenAI GPT)
-- **Tool Registry**: Pluggable tool system with type-safe execution (currently: read_file)
+- **Tool Registry**: Pluggable tool system with type-safe execution (read_file, write_file, edit_file, grep, glob)
 - **Streaming Layer**: Server-Sent Events (SSE) for real-time token streaming
 - **Database Layer (Drizzle ORM)**: Type-safe queries with automatic relation management
 
