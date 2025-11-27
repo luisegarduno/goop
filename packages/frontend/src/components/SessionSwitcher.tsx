@@ -231,7 +231,6 @@ export function SessionSwitcher() {
                   id={`session-${session.id}`}
                   ref={(el) => { sessionButtonRefs.current[index] = el; }}
                   onClick={() => handleSessionSelect(session)}
-                  onKeyDown={handleDropdownKeyDown}
                   className={`w-full px-4 py-3 text-left hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-b-0 ${
                     session.id === sessionId ? 'bg-zinc-800' : ''
                   } ${focusedIndex === index ? 'outline outline-2 outline-cyan-500 outline-offset-[-2px]' : ''}`}
