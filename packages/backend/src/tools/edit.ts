@@ -7,7 +7,11 @@ export const EditFileInputSchema = z.object({
   path: z
     .string()
     .describe("The file path to edit (relative to working directory)"),
-  old_string: z.string().describe("The exact string to search for and replace"),
+  old_string: z
+    .string()
+    .describe(
+      "The exact string to search for and replace (ALL occurrences will be replaced)"
+    ),
   new_string: z.string().describe("The string to replace it with"),
 });
 
@@ -16,7 +20,7 @@ export type EditFileInput = z.infer<typeof EditFileInputSchema>;
 export class EditFileTool implements Tool<EditFileInput> {
   name = "edit_file";
   description =
-    "Edit a file by replacing an old string with a new string (exact match required)";
+    "Edit a file by replacing ALL occurrences of an old string with a new string (exact match required)";
   schema = EditFileInputSchema;
 
   async execute(input: EditFileInput, context: ToolContext): Promise<string> {
