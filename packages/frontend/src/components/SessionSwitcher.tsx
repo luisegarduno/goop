@@ -190,7 +190,7 @@ export function SessionSwitcher() {
         aria-expanded={isOpen}
         aria-label="Select session"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Sessions menu" role="img">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
         </svg>
         <span className="text-sm">Sessions</span>
@@ -199,7 +199,8 @@ export function SessionSwitcher() {
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
-          aria-hidden="true"
+          aria-label={isOpen ? 'Collapse sessions dropdown' : 'Expand sessions dropdown'}
+          role="img"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
