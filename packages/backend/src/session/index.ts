@@ -1,13 +1,16 @@
 import { db } from "../db/index";
 import { sessions, messages, messageParts } from "../db/schema";
 import { eq, asc } from "drizzle-orm";
-import { AnthropicProvider } from "../providers/anthropic";
 import { getToolDefinitions, executeTool } from "../tools/index";
-import { ProviderMessage } from "../providers/base";
+import { ProviderMessage, Provider } from "../providers/base";
 import { SSEEvent } from "../streaming/index";
 
 export class SessionManager {
-  private provider = new AnthropicProvider();
+  private provider: Provider;
+
+  constructor(provider: Provider) {
+    this.provider = provider;
+  }
 
   async *processMessage(
     sessionId: string,
