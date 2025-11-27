@@ -4,6 +4,54 @@ import { readFile } from "fs/promises";
 import { resolve, relative, sep } from "path";
 import fg from "fast-glob";
 
+// Security limits to prevent ReDoS attacks
+const MAX_PATTERN_LENGTH = 500;
+const MAX_TOTAL_MATCHES = 10000;
+const OPERATION_TIMEOUT_MS = 10000; // 10 seconds
+
+/**
+ * Validates a regex pattern for known ReDoS vulnerabilities
+ */
+function validateRegexPattern(pattern: string): void {
+  if (pattern.length > MAX_PATTERN_LENGTH) {
+    throw new Error(
+      `Regex pattern too long (max ${MAX_PATTERN_LENGTH} characters)`
+    );
+  }
+
+  // Check for nested quantifiers: (x+)*, (x*)+ (x+)+, (x*)*
+  // This catches patterns like (a+)*, (b*)+ which cause catastrophic backtracking
+  if (/\([^)]*[*+][^)]*\)[*+]/.test(pattern)) {
+    throw new Error(
+      `Regex pattern contains potentially dangerous nested quantifiers that could cause ReDoS attacks`
+    );
+  }
+
+  // Check for multiple consecutive quantifiers: ++, **, *+, +*
+  if (/[*+]{2,}/.test(pattern)) {
+    throw new Error(
+      `Regex pattern contains consecutive quantifiers that could cause ReDoS attacks`
+    );
+  }
+
+  // Check for deeply nested groups (3+ levels) which can be problematic
+  let depth = 0;
+  let maxDepth = 0;
+  for (const char of pattern) {
+    if (char === '(') {
+      depth++;
+      maxDepth = Math.max(maxDepth, depth);
+    } else if (char === ')') {
+      depth--;
+    }
+  }
+  if (maxDepth > 5) {
+    throw new Error(
+      `Regex pattern has too many nested groups (max 5 levels) which could cause ReDoS attacks`
+    );
+  }
+}
+
 export const GrepInputSchema = z.object({
   pattern: z.string().describe("Regular expression pattern to search for"),
   glob: z
@@ -33,6 +81,19 @@ export class GrepTool implements Tool<GrepInput> {
       const globPattern = input.glob || "**/*";
       const contextLines = input.context_lines || 0;
 
+      // Validate regex pattern for ReDoS vulnerabilities
+      validateRegexPattern(input.pattern);
+
+      // Start timeout tracking
+      const startTime = Date.now();
+      const checkTimeout = () => {
+        if (Date.now() - startTime > OPERATION_TIMEOUT_MS) {
+          throw new Error(
+            `Grep operation timed out after ${OPERATION_TIMEOUT_MS}ms`
+          );
+        }
+      };
+
       // Find matching files
       const files = await fg(globPattern, {
         cwd: context.workingDir,
@@ -45,6 +106,8 @@ export class GrepTool implements Tool<GrepInput> {
           "**/build/**",
         ],
       });
+
+      checkTimeout();
 
       // Security: ensure all files are within working directory
       const normalizedWorkingDir = resolve(context.workingDir);
@@ -70,19 +133,30 @@ export class GrepTool implements Tool<GrepInput> {
       let totalMatches = 0;
 
       for (const filePath of files) {
+        checkTimeout();
+
         try {
           const content = await readFile(filePath, "utf-8");
           const lines = content.split("\n");
           const relPath = relative(context.workingDir, filePath);
           const matchedLines = new Set<number>();
 
-          // Find all matches
-          lines.forEach((line, index) => {
-            if (regex.test(line)) {
+          // Find all matches with timeout and limit protection
+          for (let index = 0; index < lines.length; index++) {
+            checkTimeout();
+
+            if (totalMatches >= MAX_TOTAL_MATCHES) {
+              throw new Error(
+                `Maximum match limit reached (${MAX_TOTAL_MATCHES}). Refine your search pattern.`
+              );
+            }
+
+            const line = lines[index];
+            if (line !== undefined && regex.test(line)) {
               matchedLines.add(index);
               totalMatches++;
             }
-          });
+          }
 
           // Add context lines
           const linesToShow = new Set<number>();
@@ -120,6 +194,14 @@ export class GrepTool implements Tool<GrepInput> {
             });
           }
         } catch (error: any) {
+          // Re-throw security-related errors (timeout, match limit)
+          if (
+            error.message.includes("timed out") ||
+            error.message.includes("Maximum match limit")
+          ) {
+            throw error;
+          }
+
           // Skip files that can't be read (binary, permission issues, etc.)
           if (error.code !== "ENOENT" && error.code !== "EISDIR") {
             console.warn(`Skipping ${filePath}: ${error.message}`);
