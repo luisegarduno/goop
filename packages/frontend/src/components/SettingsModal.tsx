@@ -91,7 +91,7 @@ export function SettingsModal({
         setMaskedKey(null);
         setKeyConfiguredInEnv(false);
       });
-  }, [provider]);
+  }, [provider, model]);
 
   const handleValidateKey = async () => {
     if (!apiKey.trim()) {
