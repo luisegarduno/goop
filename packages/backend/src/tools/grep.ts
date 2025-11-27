@@ -131,6 +131,7 @@ export class GrepTool implements Tool<GrepInput> {
       // Search through files
       const results: string[] = [];
       let totalMatches = 0;
+      let filesWithMatches = 0;
 
       for (const filePath of files) {
         checkTimeout();
@@ -174,6 +175,7 @@ export class GrepTool implements Tool<GrepInput> {
 
           // Format output
           if (linesToShow.size > 0) {
+            filesWithMatches++;
             results.push(`\n${relPath}:`);
             const sortedLines = Array.from(linesToShow).sort((a, b) => a - b);
 
@@ -213,9 +215,7 @@ export class GrepTool implements Tool<GrepInput> {
         return `No matches found for pattern "${input.pattern}" in ${files.length} files`;
       }
 
-      return `Found ${totalMatches} match(es) in ${
-        results.length / 2
-      } file(s):\n${results.join("\n")}`;
+      return `Found ${totalMatches} match(es) in ${filesWithMatches} file(s):\n${results.join("\n")}`;
     } catch (error: any) {
       throw new Error(`Grep failed: ${error.message}`);
     }
