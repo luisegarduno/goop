@@ -58,18 +58,19 @@ export function SessionSwitcher() {
     }
   }, [focusedIndex, isOpen, sessions.length]);
 
-  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-    if (!isOpen) {
-      // Open dropdown with arrow down when closed
-      if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        setIsOpen(true);
-        if (sessions.length > 0) {
-          setFocusedIndex(0);
-        }
+  const handleButtonKeyDown = useCallback((event: React.KeyboardEvent) => {
+    // Open dropdown with arrow down, Enter, or Space when closed
+    if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setIsOpen(true);
+      if (sessions.length > 0) {
+        setFocusedIndex(0);
       }
-      return;
     }
+  }, [sessions.length]);
+
+  const handleDropdownKeyDown = useCallback((event: React.KeyboardEvent) => {
+    if (!isOpen) return;
 
     switch (event.key) {
       case "ArrowDown":
@@ -160,11 +161,11 @@ export function SessionSwitcher() {
   };
 
   return (
-    <div className="relative" ref={dropdownRef} onKeyDown={handleKeyDown}>
+    <div className="relative" ref={dropdownRef}>
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        onKeyDown={handleKeyDown}
+        onKeyDown={!isOpen ? handleButtonKeyDown : undefined}
         className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md border border-zinc-700 transition-colors flex items-center gap-2"
         disabled={loading}
         aria-haspopup="listbox"
@@ -192,6 +193,7 @@ export function SessionSwitcher() {
           role="listbox"
           aria-label="Sessions list"
           aria-activedescendant={focusedIndex >= 0 ? `session-${sessions[focusedIndex]?.id}` : undefined}
+          onKeyDown={handleDropdownKeyDown}
         >
           {sessions.length === 0 ? (
             <div className="px-4 py-3 text-zinc-500 text-sm" role="option" aria-disabled="true">No sessions found</div>
@@ -203,7 +205,7 @@ export function SessionSwitcher() {
                   id={`session-${session.id}`}
                   ref={(el) => { sessionButtonRefs.current[index] = el; }}
                   onClick={() => handleSessionSelect(session)}
-                  onKeyDown={handleKeyDown}
+                  onKeyDown={handleDropdownKeyDown}
                   className={`w-full px-4 py-3 text-left hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-b-0 ${
                     session.id === sessionId ? 'bg-zinc-800' : ''
                   } ${focusedIndex === index ? 'outline outline-2 outline-cyan-500 outline-offset-[-2px]' : ''}`}
