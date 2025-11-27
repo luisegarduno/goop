@@ -53,8 +53,6 @@ export class SessionManager {
       throw new Error("Failed to create assistant message");
     }
 
-    yield { type: "message.start", messageId: assistantMessage.id };
-
     let currentAssistantMessage = assistantMessage;
     let partOrder = 0;
     const toolDefinitions = getToolDefinitions();
@@ -79,131 +77,150 @@ export class SessionManager {
       }
     };
 
-    // Stream AI response
-    for await (const event of this.provider.stream(history, toolDefinitions)) {
-      if (event.type === "text" && event.text) {
-        accumulatedText += event.text;
-        yield { type: "message.delta", text: event.text };
-      } else if (event.type === "tool_use" && event.toolUse) {
-        // Save any accumulated text before tool use
-        await saveAccumulatedText();
+    yield { type: "message.start", messageId: currentAssistantMessage.id };
 
-        const { id, name, input } = event.toolUse;
+    // Main loop - continues until AI stops calling tools
+    let continueStreaming = true;
+    while (continueStreaming) {
+      continueStreaming = false; // Will be set to true if a tool is called
 
-        yield { type: "tool.start", toolName: name, toolId: id, input };
+      // Stream AI response
+      for await (const event of this.provider.stream(history, toolDefinitions)) {
+        if (event.type === "text" && event.text) {
+          accumulatedText += event.text;
+          yield { type: "message.delta", text: event.text };
+        } else if (event.type === "tool_use" && event.toolUse) {
+          // Save any accumulated text before tool use
+          await saveAccumulatedText();
 
-        // Store tool use in current assistant message
-        await db.insert(messageParts).values({
-          messageId: currentAssistantMessage.id,
-          type: "tool_use",
-          content: { id, name, input },
-          order: partOrder++,
-        });
+          const { id, name, input } = event.toolUse;
 
-        // Add to current message content for history
-        currentMessageContent.push({ type: "tool_use", id, name, input });
+          yield { type: "tool.start", toolName: name, toolId: id, input };
 
-        // Execute tool
-        try {
-          const result = await executeTool(name, input, { workingDir });
-
-          yield { type: "tool.result", toolId: id, result };
-
-          // Create a user message for the tool result
-          const [toolResultMessage] = await db
-            .insert(messages)
-            .values({ sessionId, role: "user" })
-            .returning();
-
-          if (!toolResultMessage) {
-            throw new Error("Failed to create tool result message");
-          }
-
-          // Store tool result in the user message
+          // Store tool use in current assistant message
           await db.insert(messageParts).values({
-            messageId: toolResultMessage.id,
-            type: "tool_result",
-            content: { tool_use_id: id, content: result },
-            order: 0,
+            messageId: currentAssistantMessage.id,
+            type: "tool_use",
+            content: { id, name, input },
+            order: partOrder++,
           });
 
-          // Continue conversation with tool result - include ALL content from assistant message
-          history.push({
-            role: "assistant",
-            content: currentMessageContent,
-          });
-          history.push({
-            role: "user",
-            content: [
-              { type: "tool_result", tool_use_id: id, content: result },
-            ],
-          });
+          // Add to current message content for history
+          currentMessageContent.push({ type: "tool_use", id, name, input });
 
-          // Create a NEW assistant message for the response after tool execution
-          const [nextAssistantMessage] = await db
-            .insert(messages)
-            .values({ sessionId, role: "assistant" })
-            .returning();
+          // Execute tool
+          try {
+            const result = await executeTool(name, input, { workingDir });
 
-          if (!nextAssistantMessage) {
-            throw new Error("Failed to create next assistant message");
-          }
+            yield { type: "tool.result", toolId: id, result };
 
-          currentAssistantMessage = nextAssistantMessage;
-          partOrder = 0;
-          currentMessageContent = []; // Reset content for new message
+            // Create a user message for the tool result
+            const [toolResultMessage] = await db
+              .insert(messages)
+              .values({ sessionId, role: "user" })
+              .returning();
 
-          // Notify frontend that a new assistant message is starting
-          yield { type: "message.start", messageId: nextAssistantMessage.id };
-
-          // Get next response from AI
-          for await (const nextEvent of this.provider.stream(
-            history,
-            toolDefinitions
-          )) {
-            if (nextEvent.type === "text" && nextEvent.text) {
-              accumulatedText += nextEvent.text;
-              yield { type: "message.delta", text: nextEvent.text };
-            } else if (nextEvent.type === "tool_use" && nextEvent.toolUse) {
-              // Handle nested tool use - save text, store tool use, reset for next iteration
-              await saveAccumulatedText();
-
-              const nestedToolUse = nextEvent.toolUse;
-              yield { type: "tool.start", toolName: nestedToolUse.name, toolId: nestedToolUse.id, input: nestedToolUse.input };
-
-              await db.insert(messageParts).values({
-                messageId: currentAssistantMessage.id,
-                type: "tool_use",
-                content: { id: nestedToolUse.id, name: nestedToolUse.name, input: nestedToolUse.input },
-                order: partOrder++,
-              });
-
-              // This will be handled in the next iteration
-              // For now, we'll break and let the outer loop handle it
-              break;
+            if (!toolResultMessage) {
+              throw new Error("Failed to create tool result message");
             }
+
+            // Store tool result in the user message
+            await db.insert(messageParts).values({
+              messageId: toolResultMessage.id,
+              type: "tool_result",
+              content: { tool_use_id: id, content: result },
+              order: 0,
+            });
+
+            // Continue conversation with tool result - include ALL content from assistant message
+            history.push({
+              role: "assistant",
+              content: currentMessageContent,
+            });
+            history.push({
+              role: "user",
+              content: [
+                { type: "tool_result", tool_use_id: id, content: result },
+              ],
+            });
+
+            // Create a NEW assistant message for the response after tool execution
+            const [nextAssistantMessage] = await db
+              .insert(messages)
+              .values({ sessionId, role: "assistant" })
+              .returning();
+
+            if (!nextAssistantMessage) {
+              throw new Error("Failed to create next assistant message");
+            }
+
+            currentAssistantMessage = nextAssistantMessage;
+            partOrder = 0;
+            currentMessageContent = []; // Reset content for new message
+            accumulatedText = "";
+
+            // Notify frontend that a new assistant message is starting
+            yield { type: "message.start", messageId: nextAssistantMessage.id };
+
+            // Continue streaming with updated history
+            continueStreaming = true;
+            break; // Break inner loop to restart with while loop
+          } catch (error: any) {
+            console.error("Tool execution error:", error);
+            const errorMsg = `Tool execution failed: ${error.message}`;
+            yield { type: "tool.result", toolId: id, result: errorMsg };
+
+            // Create a user message for the error result
+            const [toolResultMessage] = await db
+              .insert(messages)
+              .values({ sessionId, role: "user" })
+              .returning();
+
+            if (!toolResultMessage) {
+              throw new Error("Failed to create tool result message");
+            }
+
+            await db.insert(messageParts).values({
+              messageId: toolResultMessage.id,
+              type: "tool_result",
+              content: { tool_use_id: id, content: errorMsg, is_error: true },
+              order: 0,
+            });
+
+            // Update history with error result
+            history.push({
+              role: "assistant",
+              content: currentMessageContent,
+            });
+            history.push({
+              role: "user",
+              content: [
+                { type: "tool_result", tool_use_id: id, content: errorMsg, is_error: true },
+              ],
+            });
+
+            // Create a NEW assistant message for the response after error
+            const [nextAssistantMessage] = await db
+              .insert(messages)
+              .values({ sessionId, role: "assistant" })
+              .returning();
+
+            if (!nextAssistantMessage) {
+              throw new Error("Failed to create next assistant message");
+            }
+
+            currentAssistantMessage = nextAssistantMessage;
+            partOrder = 0;
+            currentMessageContent = [];
+            accumulatedText = "";
+
+            // Notify frontend that a new assistant message is starting
+            yield { type: "message.start", messageId: nextAssistantMessage.id };
+
+            // Continue streaming after error
+            continueStreaming = true;
+            break; // Break inner loop to restart with while loop
           }
-        } catch (error: any) {
-          console.error("Tool execution error:", error);
-          const errorMsg = `Tool execution failed: ${error.message}`;
-          yield { type: "tool.result", toolId: id, result: errorMsg };
-
-          // Create a user message for the error result
-          const [toolResultMessage] = await db
-            .insert(messages)
-            .values({ sessionId, role: "user" })
-            .returning();
-
-          if (!toolResultMessage) {
-            throw new Error("Failed to create tool result message");
-          }
-
-          await db.insert(messageParts).values({
-            messageId: toolResultMessage.id,
-            type: "tool_result",
-            content: { tool_use_id: id, content: errorMsg, is_error: true },
-            order: 0,
-          });
         }
       }
     }
@@ -217,7 +234,7 @@ export class SessionManager {
       .set({ updatedAt: new Date() })
       .where(eq(sessions.id, sessionId));
 
-    yield { type: "message.done", messageId: assistantMessage.id };
+    yield { type: "message.done", messageId: currentAssistantMessage.id };
   }
 
   private async loadHistory(sessionId: string): Promise<ProviderMessage[]> {
