@@ -17,8 +17,13 @@ apiRoutes.get("/providers", async (c) => {
 
 // Get models for a specific provider
 apiRoutes.get("/providers/:name/models", async (c) => {
-  const providerName = c.req.param("name") as "anthropic" | "openai";
+  const providerName = c.req.param("name");
 
+  if (providerName !== "anthropic" && providerName !== "openai") {
+    return c.json({ error: "Unknown provider" }, 400);
+  }
+
+  // Now safe to use as "anthropic" | "openai"
   if (providerName === "anthropic") {
     const { ANTHROPIC_MODELS } = await import("../providers/anthropic");
     return c.json({ models: ANTHROPIC_MODELS });
@@ -55,8 +60,6 @@ apiRoutes.get("/providers/:name/models", async (c) => {
       const { OPENAI_MODELS } = await import("../providers/openai");
       return c.json({ models: OPENAI_MODELS });
     }
-  } else {
-    return c.json({ error: "Unknown provider" }, 400);
   }
 });
 
