@@ -109,14 +109,22 @@ export function SettingsModal({
         body: JSON.stringify({ provider, apiKey }),
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (jsonError) {
+        // If response is not JSON, handle gracefully
+        setKeyValidated(false);
+        setValidationError("Invalid response from server");
+        return;
+      }
 
-      if (data.valid) {
+      if (res.ok && data.valid) {
         setKeyValidated(true);
         setValidationError("");
       } else {
         setKeyValidated(false);
-        setValidationError(data.error || "Invalid API key");
+        setValidationError(data?.error || "Invalid API key");
       }
     } catch (error) {
       console.error("API key validation error:", error);
