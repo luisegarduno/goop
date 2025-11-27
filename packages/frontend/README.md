@@ -10,7 +10,7 @@ This frontend package provides a minimal, terminal-inspired UI for interacting w
 
 - Terminal-style dark UI with monospace fonts
 - Real-time streaming of AI responses via Server-Sent Events (SSE)
-- Visual indicators for tool execution (file reading, etc.)
+- Visual indicators for tool execution (read, write, edit, grep, glob tools)
 - Session persistence across page refreshes with working directory configuration
 - Initial setup modal for session title, working directory, provider, model, and API key configuration
 - Settings modal for updating session configuration (provider, model, working directory)
@@ -49,6 +49,7 @@ src/
 │   ├── InputBox.tsx           # Message input component with send button
 │   ├── SessionSwitcher.tsx    # Dropdown for switching between sessions
 │   ├── SetupModal.tsx         # Initial session configuration modal
+│   ├── SettingsModal.tsx      # Session settings update modal
 │   └── Terminal.tsx           # Main chat display with message rendering
 ├── hooks/
 │   └── useSSE.ts              # Server-Sent Events connection hook
@@ -137,12 +138,19 @@ When you first open the application (or when no valid session exists):
 
 2. **Configure Session**: Fill in the details or use the defaults:
    - Title helps identify conversations in the future
-   - Working directory determines where the `read_file` tool and other file operations will execute
-   - Example: Setting `/home/user/myproject` allows the AI to read files relative to that path
+   - Working directory determines where all file operations (read, write, edit, grep, glob) will execute
+   - Example: Setting `/home/user/myproject` allows the AI to work with files relative to that path
    - Provider and model determine which AI powers the conversation
    - API key is validated before session creation (displays masked version from `.env` for reference)
 
 3. **Start Chatting**: After submission, the modal closes and you can start sending messages. The working directory, provider, and model are included automatically in all requests.
+
+**Example Commands:**
+- "Can you read the package.json file?"
+- "Can you update the version in package.json to 2.0.0?"
+- "Can you find all occurrences of 'TODO' in the codebase?"
+- "List all TypeScript files in the src directory"
+- "Show me the implementation of the Terminal component"
 
 **Notes:**
 - Session ID, working directory, provider, and model are saved to `localStorage` and persist across page refreshes

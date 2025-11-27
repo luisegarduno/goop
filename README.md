@@ -26,7 +26,12 @@ A minimal AI coding agent with web UI, built with Bun, TypeScript, React, and Po
 - 🤖 Multiple AI provider support (Anthropic Claude, OpenAI GPT)
 - 🎛️ Model selection per session with runtime switching
 - 🔑 API key validation before session creation
-- 📁 File reading tool with path validation
+- 🛠️ Comprehensive tool system with path validation:
+  - 📖 `read_file` - Read file contents
+  - ✍️ `write_file` - Create/overwrite files
+  - ✏️ `edit_file` - Search and replace text in files
+  - 🔍 `grep` - Search for regex patterns across files
+  - 📂 `glob` - Find files matching glob patterns
 - 💬 Real-time streaming responses via Server-Sent Events
 - 🗄️ PostgreSQL conversation persistence with sessions
 - 🎨 Terminal-like web UI with session management
@@ -97,7 +102,11 @@ goop/
 │   │   │   ├── tools/             # Tool system
 │   │   │   │   ├── base.ts        # Tool interface
 │   │   │   │   ├── index.ts       # Tool registry
-│   │   │   │   └── read.ts        # File reading tool
+│   │   │   │   ├── read.ts        # Read file tool
+│   │   │   │   ├── write.ts       # Write file tool
+│   │   │   │   ├── edit.ts        # Edit file tool
+│   │   │   │   ├── grep.ts        # Search with regex tool
+│   │   │   │   └── glob.ts        # Find files tool
 │   │   │   ├── session/           # Session management
 │   │   │   │   └── index.ts       # Session orchestration
 │   │   │   ├── streaming/         # SSE event formatting
@@ -159,6 +168,7 @@ goop/
 | **zod-to-json-schema** | ^3.22.0  | Zod to JSON Schema conversion |
 | **@anthropic-ai/sdk**  | ^0.24.0  | Claude API integration        |
 | **openai**             | ^6.9.1   | OpenAI GPT integration        |
+| **fast-glob**          | ^3.3.3   | Fast file pattern matching    |
 | **dotenv**             | ^17.2.3  | Environment config            |
 
 ### Frontend
@@ -192,11 +202,13 @@ Primarily, the commands I used were [create_plan.md](.claude/commands/create_pla
 ## Roadmap
 
 - [x] Phase 1: Foundation
-- [ ] Phase 2: Additional providers (Google, local/llama.cpp)
-- [ ] Phase 3: More tools (write_file, edit_file, bash, grep, glob) (current)
-- [ ] Phase 4: Approval system
+- [x] Phase 2: Initial Providers (Anthropic Claude, OpenAI GPT)
+- [x] Phase 3: Initial tools (read, write, edit, grep, glob)
+- [ ] Phase 4: Approval system (current)
 - [ ] Phase 5: Mode system (Ask/Plan/Build)
 - [ ] Phase 6: Testing & CI/CD
+- [ ] Phase 7: Additional providers (Google Gemini, local/llama.cpp)
+- [ ] Phase 8: Additional tools (bash)
 
 ## License
 
