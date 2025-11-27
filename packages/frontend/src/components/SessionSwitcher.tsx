@@ -68,6 +68,35 @@ export function SessionSwitcher() {
     }
   }, [focusedIndex, isOpen, sessions.length]);
 
+  const handleSessionSelect = async (session: SessionInfo) => {
+    if (session.id === sessionId) {
+      // Already on this session
+      setIsOpen(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null); // Clear any previous error
+    try {
+      // Fetch messages for the selected session
+      const messages = await getMessages(session.id);
+
+      // Load the session into the store
+      loadSession(session.id, session.workingDirectory, messages);
+
+      if (import.meta.env.DEV) {
+        console.log(`Switched to session "${session.title}" (${session.id})`);
+      }
+
+      setIsOpen(false);
+    } catch (error) {
+      console.error("Failed to switch session:", error);
+      setError("Failed to switch session. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleButtonKeyDown = useCallback((event: React.KeyboardEvent) => {
     // Open dropdown with arrow down, Enter, or Space when closed
     if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
@@ -85,7 +114,7 @@ export function SessionSwitcher() {
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault();
-        setFocusedIndex((prev) => 
+        setFocusedIndex((prev) =>
           prev < sessions.length - 1 ? prev + 1 : prev
         );
         break;
@@ -124,36 +153,7 @@ export function SessionSwitcher() {
         }
         break;
     }
-  }, [isOpen, sessions, focusedIndex]);
-
-  const handleSessionSelect = async (session: SessionInfo) => {
-    if (session.id === sessionId) {
-      // Already on this session
-      setIsOpen(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null); // Clear any previous error
-    try {
-      // Fetch messages for the selected session
-      const messages = await getMessages(session.id);
-
-      // Load the session into the store
-      loadSession(session.id, session.workingDirectory, messages);
-
-      if (import.meta.env.DEV) {
-        console.log(`Switched to session "${session.title}" (${session.id})`);
-      }
-
-      setIsOpen(false);
-    } catch (error) {
-      console.error("Failed to switch session:", error);
-      setError("Failed to switch session. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isOpen, sessions, focusedIndex, handleSessionSelect]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
