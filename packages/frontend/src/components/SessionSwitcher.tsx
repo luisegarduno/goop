@@ -77,7 +77,7 @@ export function SessionSwitcher() {
     
     // Calculate difference in calendar days
     const diffMs = startOfDayNow.getTime() - startOfDayDate.getTime();
-    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) {
       return `Today ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
