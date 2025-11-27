@@ -3,15 +3,48 @@ import { Provider, ProviderMessage, StreamEvent, ToolDefinition } from "./base";
 import { loadConfig } from "../config/index";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
+// Add model list constant
+export const ANTHROPIC_MODELS = [
+  "claude-3-haiku-20240307",
+  "claude-3-5-haiku-latest",
+  "claude-opus-4-0",
+  "claude-sonnet-4-0",
+  "claude-opus-4-1",
+  "claude-haiku-4-5",
+  "claude-opus-4-5",
+  "claude-sonnet-4-5",
+] as const;
+
+// Max output tokens for each model
+const MODEL_MAX_TOKENS: Record<string, number> = {
+  "claude-3-haiku-20240307": 4096,
+  "claude-3-5-haiku-latest": 8192,
+  "claude-opus-4-0": 32768,
+  "claude-sonnet-4-0": 64000,
+  "claude-opus-4-1": 32768,
+  "claude-haiku-4-5": 64000,
+  "claude-opus-4-5": 64000,
+  "claude-sonnet-4-5": 64000,
+};
+
 export class AnthropicProvider implements Provider {
   name = "anthropic";
   private client: Anthropic;
+  private model: string;
 
-  constructor() {
+  constructor(model: string = "claude-3-5-haiku-latest") {
+    // Validate model is in allowed list
+    if (!ANTHROPIC_MODELS.includes(model as any)) {
+      throw new Error(
+        `Invalid Anthropic model: ${model}. Allowed models: ${ANTHROPIC_MODELS.join(", ")}`
+      );
+    }
+
     const config = loadConfig();
     this.client = new Anthropic({
       apiKey: config.anthropic.apiKey,
     });
+    this.model = model;
   }
 
   async *stream(
@@ -25,9 +58,12 @@ export class AnthropicProvider implements Provider {
     }));
 
     try {
+      // Get max tokens for this model, default to 8192 if not found
+      const maxTokens = MODEL_MAX_TOKENS[this.model] || 8192;
+
       const stream = await this.client.messages.stream({
-        model: "claude-3-5-haiku-latest",
-        max_tokens: 8192,
+        model: this.model,
+        max_tokens: maxTokens,
         messages: messages as any,
         tools: anthropicTools as any,
       });

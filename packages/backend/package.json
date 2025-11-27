@@ -17,6 +17,7 @@
     "dotenv": "^17.2.3",
     "drizzle-orm": "0.44.7",
     "hono": "^4.0.0",
+    "openai": "^6.9.1",
     "postgres": "^3.4.0",
     "zod": "^3.25.76",
     "zod-to-json-schema": "^3.22.0"

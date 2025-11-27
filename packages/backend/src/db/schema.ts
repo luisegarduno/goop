@@ -12,6 +12,8 @@ export const sessions = pgTable("sessions", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: text("title").notNull(),
   workingDirectory: text("working_directory").notNull(),
+  provider: text("provider").notNull().default("anthropic"),
+  model: text("model").notNull().default("claude-3-5-haiku-latest"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
