@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { API_BASE } from "../api/client";
 
 interface SettingsModalProps {
   currentProvider: string;
@@ -42,7 +43,7 @@ export function SettingsModal({
 
   // Fetch available providers on mount
   useEffect(() => {
-    fetch("http://localhost:3001/api/providers")
+    fetch(`${API_BASE}/providers`)
       .then((res) => res.json())
       .then((data) => {
         setProviders(data);
@@ -59,7 +60,7 @@ export function SettingsModal({
     setLoadingModels(true);
 
     // Fetch models
-    fetch(`http://localhost:3001/api/providers/${provider}/models`)
+    fetch(`${API_BASE}/providers/${provider}/models`)
       .then((res) => res.json())
       .then((data) => {
         setModels(data.models || []);
@@ -75,7 +76,7 @@ export function SettingsModal({
       });
 
     // Fetch and pre-populate API key from .env
-    fetch(`http://localhost:3001/api/providers/${provider}/api-key`)
+    fetch(`${API_BASE}/providers/${provider}/api-key`)
       .then((res) => res.json())
       .then((data) => {
         if (data.apiKey) {
@@ -98,7 +99,7 @@ export function SettingsModal({
     setValidationError("");
 
     try {
-      const res = await fetch("http://localhost:3001/api/providers/validate", {
+      const res = await fetch(`${API_BASE}/providers/validate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider, apiKey }),
