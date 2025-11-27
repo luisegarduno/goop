@@ -500,7 +500,7 @@ The backend exposes the following REST and SSE endpoints:
 - Change provider and/or model
 - Validate new API key (pre-populated from .env)
 - Save changes - conversation continues with new provider/model
-- Message history is preserved
+- Message history is cleared when changing providers to ensure compatibility
 
 ## Working with Tools
 
