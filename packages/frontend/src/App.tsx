@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Terminal } from "./components/Terminal";
 import { InputBox } from "./components/InputBox";
 import { SetupModal } from "./components/SetupModal";
+import { SessionSwitcher } from "./components/SessionSwitcher";
 import { useSSE } from "./hooks/useSSE";
 import { useSessionStore } from "./stores/session";
 import { createSession, getSession, getMessages } from "./api/client";
@@ -148,6 +149,14 @@ function App() {
   return (
     <div className="h-screen flex flex-col">
       {showSetup && <SetupModal onComplete={handleSetupComplete} />}
+
+      {/* Session Switcher - Top Right Corner */}
+      {sessionId && (
+        <div className="absolute top-4 right-4 z-40">
+          <SessionSwitcher />
+        </div>
+      )}
+
       <div className="flex-1 overflow-hidden">
         <Terminal />
       </div>

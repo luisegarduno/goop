@@ -32,6 +32,7 @@ interface SessionStore {
   finishStreaming: () => void;
   setStreaming: (streaming: boolean) => void;
   clearSession: () => void;
+  loadSession: (id: string, workingDir: string, messages: Message[]) => void;
 }
 
 export const useSessionStore = create<SessionStore>((set) => ({
@@ -128,5 +129,18 @@ export const useSessionStore = create<SessionStore>((set) => ({
     set({ sessionId: null, workingDirectory: null, messages: [], currentText: "", currentParts: [], isStreaming: false });
     localStorage.removeItem("goop_session_id");
     localStorage.removeItem("goop_working_directory");
+  },
+  loadSession: (id, workingDir, messages) => {
+    set({
+      sessionId: id,
+      workingDirectory: workingDir,
+      messages,
+      currentText: "",
+      currentParts: [],
+      isStreaming: false,
+    });
+    // Persist to localStorage
+    localStorage.setItem("goop_session_id", id);
+    localStorage.setItem("goop_working_directory", workingDir);
   },
 }));
