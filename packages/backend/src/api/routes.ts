@@ -266,30 +266,6 @@ apiRoutes.patch("/sessions/:id", async (c) => {
     }
   }
 
-  // Validate API key if provided and provider is being updated
-  if (apiKey && provider) {
-    try {
-      if (provider === "anthropic") {
-        const Anthropic = (await import("@anthropic-ai/sdk")).default;
-        const client = new Anthropic({ apiKey });
-        await client.messages.create({
-          model: "claude-3-5-haiku-latest",
-          max_tokens: 1,
-          messages: [{ role: "user", content: "test" }],
-        });
-      } else if (provider === "openai") {
-        const OpenAI = (await import("openai")).default;
-        const client = new OpenAI({ apiKey });
-        await client.models.list();
-      }
-    } catch (error: any) {
-      return c.json(
-        { error: `Invalid ${provider} API key: ${error.message}` },
-        400
-      );
-    }
-  }
-
   // Get current session for validation and provider change check
   const currentSession = await db.query.sessions.findFirst({
     where: eq(sessions.id, sessionId),
@@ -297,6 +273,31 @@ apiRoutes.patch("/sessions/:id", async (c) => {
 
   if (!currentSession) {
     return c.json({ error: "Session not found" }, 404);
+  }
+
+  // Validate API key if provided
+  if (apiKey) {
+    const targetProvider = provider || (currentSession.provider as "anthropic" | "openai");
+    try {
+      if (targetProvider === "anthropic") {
+        const Anthropic = (await import("@anthropic-ai/sdk")).default;
+        const client = new Anthropic({ apiKey });
+        await client.messages.create({
+          model: "claude-3-5-haiku-latest",
+          max_tokens: 1,
+          messages: [{ role: "user", content: "test" }],
+        });
+      } else if (targetProvider === "openai") {
+        const OpenAI = (await import("openai")).default;
+        const client = new OpenAI({ apiKey });
+        await client.models.list();
+      }
+    } catch (error: any) {
+      return c.json(
+        { error: `Invalid ${targetProvider} API key: ${error.message}` },
+        400
+      );
+    }
   }
 
   // Validate model is valid for the provider (current or new)
