@@ -150,9 +150,22 @@ function App() {
     <div className="h-screen flex flex-col">
       {showSetup && <SetupModal onComplete={handleSetupComplete} />}
 
-      {/* Session Switcher - Top Right Corner */}
+      {/* Session Switcher & New Session Button - Top Right Corner */}
       {sessionId && (
-        <div className="absolute top-4 right-4 z-40">
+        <div className="absolute top-4 right-4 z-40 flex gap-2">
+          <button
+            onClick={() => {
+              clearSession();
+              setShowSetup(true);
+            }}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md border border-green-700 transition-colors flex items-center gap-2"
+            title="Start a new session"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span className="text-sm">New Session</span>
+          </button>
           <SessionSwitcher />
         </div>
       )}
