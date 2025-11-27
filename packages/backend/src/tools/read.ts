@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Tool, ToolContext } from "./base";
 import { readFile } from "fs/promises";
-import { resolve } from "path";
+import { resolve, sep } from "path";
 
 export const ReadFileInputSchema = z.object({
   path: z.string().describe("The file path to read"),
@@ -16,10 +16,11 @@ export class ReadFileTool implements Tool<ReadFileInput> {
 
   async execute(input: ReadFileInput, context: ToolContext): Promise<string> {
     try {
+      const normalizedWorkingDir = resolve(context.workingDir);
       const filePath = resolve(context.workingDir, input.path);
 
-      // Basic security: ensure we don't read outside working directory
-      if (!filePath.startsWith(context.workingDir)) {
+      // Security: ensure we don't read outside working directory
+      if (!filePath.startsWith(normalizedWorkingDir + sep)) {
         throw new Error(
           "Access denied: cannot read files outside working directory"
         );

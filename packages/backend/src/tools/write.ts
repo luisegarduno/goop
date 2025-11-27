@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Tool, ToolContext } from "./base";
 import { writeFile, mkdir } from "fs/promises";
-import { resolve, dirname } from "path";
+import { resolve, dirname, sep } from "path";
 
 export const WriteFileInputSchema = z.object({
   path: z.string().describe("The file path to write (relative to working directory)"),
@@ -17,10 +17,11 @@ export class WriteFileTool implements Tool<WriteFileInput> {
 
   async execute(input: WriteFileInput, context: ToolContext): Promise<string> {
     try {
+      const normalizedWorkingDir = resolve(context.workingDir);
       const filePath = resolve(context.workingDir, input.path);
 
       // Security: ensure we don't write outside working directory
-      if (!filePath.startsWith(context.workingDir)) {
+      if (!filePath.startsWith(normalizedWorkingDir + sep)) {
         throw new Error(
           "Access denied: cannot write files outside working directory"
         );
