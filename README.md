@@ -15,19 +15,23 @@ A minimal AI coding agent with web UI, built with Bun, TypeScript, React, and Po
 
 ## Features
 
-- 🤖 Anthropic Claude integration with streaming support
+- 🤖 Multiple AI provider support (Anthropic Claude, OpenAI GPT)
+- 🎛️ Model selection per session with runtime switching
+- 🔑 API key validation before session creation
 - 📁 File reading tool with path validation
 - 💬 Real-time streaming responses via Server-Sent Events
 - 🗄️ PostgreSQL conversation persistence with sessions
 - 🎨 Terminal-like web UI with session management
 - 🔄 Session switching between multiple conversations
-- ⚙️ Working directory configuration per session
+- ⚙️ Mid-conversation settings updates
+- 🗂️ Working directory configuration per session
 
 ## Prerequisites
 
 - [Bun](https://bun.sh) >= 1.0
 - [Docker](https://docker.com) & Docker Compose
-- Anthropic API key
+- Anthropic API key (required)
+- OpenAI API key (optional, for GPT models)
 
 ## Quick Start
 
@@ -40,10 +44,11 @@ A minimal AI coding agent with web UI, built with Bun, TypeScript, React, and Po
    ./setup.sh
    ```
 
-2. Add Anthropic API key to `.env`
+2. Add API keys to `.env`
 
    ```env
    ANTHROPIC_API_KEY=sk-ant-...
+   OPENAI_API_KEY=sk-...  # Optional
    ```
 
 3. Run monorepo

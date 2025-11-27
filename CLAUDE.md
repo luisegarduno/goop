@@ -60,7 +60,8 @@ This project uses **Bun** as the runtime and package manager. All commands shoul
 
 1. Copy `.env.example` to `.env` in the project root and configure:
    - `DATABASE_URL` - PostgreSQL connection string
-   - `ANTHROPIC_API_KEY` - Your Anthropic API key
+   - `ANTHROPIC_API_KEY` - Your Anthropic API key (required)
+   - `OPENAI_API_KEY` - Your OpenAI API key (optional)
    - `NODE_ENV` - Environment (development, production, test)
    - `HONO_BACKEND_PORT` - Backend server port (default: 3001)
 
@@ -319,11 +320,19 @@ src/
 
 5. **Session Lifecycle**:
    - App checks localStorage for existing session on mount
-   - If no session exists, SetupModal prompts user for session title and working directory
-   - Session ID and working directory stored in both Zustand and localStorage
+   - If no session exists, SetupModal prompts user for:
+     - Session title
+     - Working directory
+     - LLM provider (Anthropic or OpenAI)
+     - Model selection (provider-specific)
+     - API key (validated before creation, pre-populated from .env if available)
+   - Session ID, working directory, provider, and model stored in Zustand and localStorage
    - Messages persist in PostgreSQL
    - Page refresh restores session from localStorage and loads message history from backend
    - Users can switch between existing sessions via SessionSwitcher dropdown
+   - Users can update session settings (provider, model, working directory) via Settings modal
+   - Settings changes preserve message history
+   - API keys are pre-populated from .env when modals open
    - Users can create new sessions via "New Session" button (clears current session and shows setup modal)
    - Session list shows title, working directory, and last updated timestamp
    - Date formatting displays "Today HH:MM", "Yesterday HH:MM", "N days ago", or full date
@@ -413,13 +422,17 @@ The backend exposes the following REST and SSE endpoints:
 
 **REST Endpoints:**
 - `GET /health` - Health check (returns `{ status: "ok" }`)
+- `GET /api/providers` - List available AI providers
+- `GET /api/providers/:name/models` - Get models for specific provider
+- `GET /api/providers/:name/api-key` - Get API key from .env for provider (returns actual key for pre-population)
+- `POST /api/providers/validate` - Validate API key for provider
 - `POST /api/sessions` - Create new session
-  - Request body: `{ title?: string, workingDirectory: string }`
-  - Returns session object with id, title, workingDirectory, createdAt, updatedAt
-  - Default title: "New Conversation"
-  - workingDirectory is required and validated for read access
+  - Request body: `{ title?, workingDirectory, provider, model, apiKey? }`
+  - Returns session object with id, title, workingDirectory, provider, model, createdAt, updatedAt
+  - Validates API key if provided
 - `GET /api/sessions` - List all sessions (ordered by updatedAt DESC)
 - `GET /api/sessions/:id` - Get specific session by ID
+- `PATCH /api/sessions/:id` - Update session settings (provider, model, workingDirectory)
 - `GET /api/sessions/:id/messages` - Get all messages for a session (with parts)
 - `GET /api/sessions/:id/events` - SSE endpoint for connection keep-alive with periodic pings (experimental, not actively used)
 
@@ -453,6 +466,41 @@ The backend exposes the following REST and SSE endpoints:
 - Anthropic Claude (claude-3-5-sonnet-20241022)
 - Streaming via Anthropic SDK
 - Supports tool calling with automatic JSON schema conversion via zod-to-json-schema
+
+## LLM Provider Selection
+
+**Available Providers:**
+- **Anthropic Claude**: Static model list including Haiku, Sonnet, and Opus variants
+- **OpenAI GPT**: Dynamic model fetching from OpenAI API
+
+**Provider Configuration:**
+1. Both providers require API keys in `.env` file
+2. API keys are validated during session creation and settings updates
+3. Keys are NOT stored in the database (validation only)
+4. Keys are pre-populated from .env in modals for user convenience
+5. Session manager loads provider/model dynamically per session
+
+**Model Lists:**
+- **Anthropic Models** (hardcoded in `src/providers/anthropic.ts`):
+  - claude-3-haiku-20240307
+  - claude-3-5-haiku-latest
+  - claude-opus-4-0
+  - claude-sonnet-4-0
+  - claude-opus-4-1
+  - claude-haiku-4-5
+  - claude-opus-4-5
+  - claude-sonnet-4-5
+
+- **OpenAI Models** (fetched from https://api.openai.com/v1/models):
+  - Dynamic list filtered to chat completion models
+  - Falls back to static list if API fetch fails
+
+**Switching Providers:**
+- Use Settings button in chat UI to open settings modal
+- Change provider and/or model
+- Validate new API key (pre-populated from .env)
+- Save changes - conversation continues with new provider/model
+- Message history is preserved
 
 ## Working with Tools
 
