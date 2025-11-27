@@ -8,7 +8,7 @@ const configSchema = z.object({
     url: z.string().url(),
   }),
   anthropic: z.object({
-    apiKey: z.string().min(1),
+    apiKey: z.string().optional(),
   }),
   openai: z.object({
     apiKey: z.string().optional(),
