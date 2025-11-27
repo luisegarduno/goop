@@ -161,6 +161,7 @@ apiRoutes.post("/sessions", async (c) => {
     const providerInfo = getProviderInfo(provider);
 
     // For Anthropic, validate against static list
+    // OpenAI models are not validated to allow dynamic models and fine-tuned variants
     if (provider === "anthropic" && !providerInfo.models.includes(model)) {
       return c.json(
         {
