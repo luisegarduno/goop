@@ -282,7 +282,7 @@ export function SetupModal({ onComplete }: SetupModalProps) {
                 setValidationError("");
               }}
               className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-100 font-mono focus:outline-none focus:border-cyan-500"
-              placeholder={keyConfiguredInEnv ? "Leave empty to use .env key" : `${provider.toUpperCase()}_API_KEY`}
+              placeholder={keyConfiguredInEnv ? "Leave empty to use .env key" : (provider ? `${provider.toUpperCase()}_API_KEY` : "API_KEY")}
             />
             <div className="flex items-center gap-2 mt-2">
               <button
