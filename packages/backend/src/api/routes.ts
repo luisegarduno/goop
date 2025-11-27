@@ -279,16 +279,44 @@ apiRoutes.patch("/sessions/:id", async (c) => {
     }
   }
 
+  // Get current session for validation and provider change check
+  const currentSession = await db.query.sessions.findFirst({
+    where: eq(sessions.id, sessionId),
+  });
+
+  if (!currentSession) {
+    return c.json({ error: "Session not found" }, 404);
+  }
+
+  // Validate model is valid for the provider (current or new)
+  if (model !== undefined) {
+    const targetProvider = provider || (currentSession.provider as "anthropic" | "openai");
+
+    try {
+      const { getProviderInfo } = await import("../providers/index");
+      const providerInfo = getProviderInfo(targetProvider);
+
+      // For Anthropic, validate against static list
+      // OpenAI models are not validated here because the model list is fetched dynamically
+      // from the OpenAI API and may include models not in the static fallback list
+      if (targetProvider === "anthropic" && !providerInfo.models.includes(model)) {
+        return c.json(
+          {
+            error: `Invalid model for ${targetProvider}. Allowed: ${providerInfo.models.join(", ")}`,
+          },
+          400
+        );
+      }
+    } catch (error: any) {
+      return c.json({ error: error.message }, 400);
+    }
+  }
+
   // Check if provider is being changed
   let providerChanged = false;
-  if (provider !== undefined) {
-    const currentSession = await db.query.sessions.findFirst({
-      where: eq(sessions.id, sessionId),
-    });
-    if (currentSession && currentSession.provider !== provider) {
-      providerChanged = true;
-      console.log(`[API] Provider changed from ${currentSession.provider} to ${provider} - clearing message history`);
-    }
+  if (provider !== undefined && currentSession.provider !== provider) {
+    providerChanged = true;
+    console.log(`[API] Provider changed from ${currentSession.provider} to ${provider} - clearing message history`);
   }
 
   // If provider changed, clear all messages for this session to avoid format incompatibility
