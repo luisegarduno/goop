@@ -1,7 +1,6 @@
 import { Provider } from "./base";
 import { AnthropicProvider, ANTHROPIC_MODELS } from "./anthropic";
 import { OpenAIProvider, OPENAI_MODELS } from "./openai";
-import { loadConfig } from "../config/index";
 
 export type ProviderName = "anthropic" | "openai";
 
