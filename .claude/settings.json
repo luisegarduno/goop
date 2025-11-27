@@ -6,7 +6,8 @@
       "Bash(glob:*)",
       "Bash(ls:*)",
       "Bash(find:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "mcp__serena"
     ]
   },
   "env": {
