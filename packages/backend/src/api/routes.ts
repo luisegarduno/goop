@@ -389,6 +389,7 @@ apiRoutes.post("/sessions/:id/messages", async (c) => {
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
+      let isClosed = false;
 
       try {
         for await (const event of sessionManager.processMessage(
@@ -396,18 +397,50 @@ apiRoutes.post("/sessions/:id/messages", async (c) => {
           content,
           workingDir
         )) {
-          const message = formatSSE(event);
-          controller.enqueue(encoder.encode(message));
+          // Check if stream was closed (e.g., due to client disconnect or timeout)
+          if (isClosed) {
+            console.log("[SSE] Stream closed, stopping message processing");
+            break;
+          }
+
+          try {
+            const message = formatSSE(event);
+            controller.enqueue(encoder.encode(message));
+          } catch (enqueueError: any) {
+            // Controller is already closed (likely timeout or client disconnect)
+            if (enqueueError.code === "ERR_INVALID_STATE") {
+              console.log("[SSE] Controller closed during enqueue, stopping stream");
+              isClosed = true;
+              break;
+            }
+            throw enqueueError;
+          }
         }
       } catch (error: any) {
         console.error("Error in SSE stream:", error);
-        const errorEvent = formatSSE({
-          type: "message.done",
-          messageId: "",
-        });
-        controller.enqueue(encoder.encode(errorEvent));
+
+        // Only try to send error event if controller is not closed
+        if (!isClosed) {
+          try {
+            const errorEvent = formatSSE({
+              type: "message.done",
+              messageId: "",
+            });
+            controller.enqueue(encoder.encode(errorEvent));
+          } catch (enqueueError) {
+            // Controller closed, can't send error event
+            console.log("[SSE] Could not send error event, controller already closed");
+          }
+        }
       } finally {
-        controller.close();
+        if (!isClosed) {
+          try {
+            controller.close();
+          } catch (closeError) {
+            // Controller already closed, ignore
+            console.log("[SSE] Controller already closed in finally block");
+          }
+        }
       }
     },
   });
