@@ -81,6 +81,25 @@ beforeEach(async () => {
     };
   });
 
+  // Mock the OpenAI client to prevent real API calls when fetching models
+  mock.module("openai", () => {
+    return {
+      default: class MockOpenAI {
+        constructor(config: any) {}
+        models = {
+          list: async () => ({
+            data: [
+              { id: "gpt-4o" },
+              { id: "gpt-4o-mini" },
+              { id: "gpt-4-turbo" },
+              { id: "gpt-3.5-turbo" },
+            ],
+          }),
+        };
+      },
+    };
+  });
+
   // Mock the SessionManager to avoid making real API calls during tests
   mock.module("../session/index", () => {
     return {
