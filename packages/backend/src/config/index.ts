@@ -33,7 +33,7 @@ export function loadConfig(): Config {
       apiKey: process.env.OPENAI_API_KEY,
     },
     server: {
-      port: process.env.PORT || 3001,
+      port: process.env.HONO_BACKEND_PORT || 3001,
       env: process.env.NODE_ENV || "development",
     },
   };
