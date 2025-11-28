@@ -58,7 +58,11 @@ packages/backend/
 │   ├── tools/
 │   │   ├── base.ts          # Tool interface definition
 │   │   ├── index.ts         # Tool registry and execution
-│   │   └── read.ts          # Read file tool implementation
+│   │   ├── read.ts          # Read file tool implementation
+│   │   ├── write.ts         # Write file tool implementation
+│   │   ├── edit.ts          # Edit file tool implementation
+│   │   ├── grep.ts          # Grep tool implementation (regex search)
+│   │   └── glob.ts          # Glob tool implementation (file pattern matching)
 │   ├── utils/
 │   │   ├── security.ts      # Security utilities for path validation
 │   │   └── validation.ts    # API key validation utilities
@@ -70,36 +74,38 @@ packages/backend/
 ## Frontend Package (`packages/frontend/`)
 
 ```
+
 packages/frontend/
-├── dist/                    # Build output (gitignored)
-├── node_modules/            # Package-specific dependencies
-├── public/                  # Static assets
-├── src/                     # Source code
-│   ├── api/
-│   │   └── client.ts        # Backend API communication
-│   ├── assets/              # Images, fonts, etc.
-│   ├── components/
-│   │   ├── InputBox.tsx        # Message input component with auto-focus
-│   │   ├── SessionSwitcher.tsx # Dropdown for switching between sessions
-│   │   ├── SetupModal.tsx      # Session setup modal (title, workingDir, provider, model)
-│   │   ├── SettingsModal.tsx   # Settings modal for updating session configuration
-│   │   └── Terminal.tsx        # Main message display component with auto-scroll
-│   ├── hooks/
-│   │   └── useSSE.ts        # Server-Sent Events hook
-│   ├── stores/
-│   │   └── session.ts       # Zustand state store
-│   ├── styles/
-│   │   └── index.css        # Tailwind imports and base styles
-│   ├── App.tsx              # Root component
-│   └── main.tsx             # React entry point
-├── eslint.config.js         # ESLint configuration
-├── index.html               # HTML entry point
-├── package.json             # Frontend package config
-├── tailwind.config.js       # Tailwind CSS configuration
-├── tsconfig.json            # Frontend TypeScript config
-├── tsconfig.app.json        # App-specific TS config
-├── tsconfig.node.json       # Vite config TS config
-└── vite.config.ts           # Vite build configuration
+├── dist/ # Build output (gitignored)
+├── node_modules/ # Package-specific dependencies
+├── public/ # Static assets
+├── src/ # Source code
+│ ├── api/
+│ │ └── client.ts # Backend API communication
+│ ├── assets/ # Images, fonts, etc.
+│ ├── components/
+│ │ ├── InputBox.tsx # Message input component with auto-focus
+│ │ ├── SessionSwitcher.tsx # Dropdown for switching between sessions
+│ │ ├── SetupModal.tsx # Session setup modal (title, workingDir, provider, model)
+│ │ ├── SettingsModal.tsx # Settings modal for updating session configuration
+│ │ └── Terminal.tsx # Main message display component with auto-scroll
+│ ├── hooks/
+│ │ └── useSSE.ts # Server-Sent Events hook
+│ ├── stores/
+│ │ └── session.ts # Zustand state store
+│ ├── styles/
+│ │ └── index.css # Tailwind imports and base styles
+│ ├── App.tsx # Root component
+│ └── main.tsx # React entry point
+├── eslint.config.js # ESLint configuration
+├── index.html # HTML entry point
+├── package.json # Frontend package config
+├── tailwind.config.js # Tailwind CSS configuration
+├── tsconfig.json # Frontend TypeScript config
+├── tsconfig.app.json # App-specific TS config
+├── tsconfig.node.json # Vite config TS config
+└── vite.config.ts # Vite build configuration
+
 ```
 
 ## Database Schema (PostgreSQL)
@@ -132,7 +138,7 @@ Three main tables with cascade delete relationships:
 - `src/providers/`: AI provider implementations (Anthropic and OpenAI, with provider registry)
 - `src/session/`: Session manager orchestrating conversations
 - `src/streaming/`: SSE event definitions
-- `src/tools/`: Tool implementations (currently read_file)
+- `src/tools/`: Tool implementations (read_file, write_file, edit_file, grep, glob)
 
 ### Frontend
 - `src/api/`: Backend communication layer
@@ -153,3 +159,4 @@ Three main tables with cascade delete relationships:
 - **Root**: `tsconfig.json`, `package.json`, `.env`, `docker-compose.yml`
 - **Backend**: `drizzle.config.ts`, `package.json`, `tsconfig.json`
 - **Frontend**: `vite.config.ts`, `tailwind.config.js`, `eslint.config.js`, `package.json`, `tsconfig.json`
+```

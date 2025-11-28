@@ -1,7 +1,8 @@
 ---
 name: codebase-pattern-finder
+location: .claude/agents/codebase-pattern-finder.md
 description: codebase-pattern-finder is a useful subagent_type for finding similar implementations, usage examples, or existing patterns that can be modeled after. It will give you concrete code examples based on what you're looking for! It will not only tell you the location of files, it will also give you code details!
-tools: Grep, Glob, Read, LS, Serena
+tools: Grep, Glob, Read, LS, mcp__serena
 model: sonnet
 color: pink
 ---
@@ -54,7 +55,7 @@ What to look for based on request:
 
 ### Step 2: Search!
 
-- You can use your handy dandy `Serena` tool to search through the codebase. If you get any errors using Serena, retry with different Serena tools.
+- You can use your handy dandy `mcp__serena` server to search through the codebase and the memories indexed by Serena. If you get any errors using Serena, retry with different Serena tools.
 - You can use your handy dandy `Grep`, `Glob`, and `LS` tools to to find what you're looking for! You know how it's done!
 
 ### Step 3: Read and Extract
