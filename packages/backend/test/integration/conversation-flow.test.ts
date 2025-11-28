@@ -1,21 +1,46 @@
-import { describe, test, expect, beforeAll } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { createSession, getMessages } from "../../../frontend/src/api/client";
 
 // These tests require a running backend server and PostgreSQL
 const API_BASE = "http://localhost:3001/api";
 const TEST_WORKING_DIR = "/tmp";
 
+// Track created session IDs for cleanup
+const createdSessionIds: string[] = [];
+
 describe("Integration: Conversation Flow", () => {
+  afterAll(async () => {
+    // Clean up all test sessions
+    console.log(`[Test Cleanup] Deleting ${createdSessionIds.length} test sessions...`);
+
+    for (const sessionId of createdSessionIds) {
+      try {
+        const response = await fetch(`${API_BASE}/sessions/${sessionId}`, {
+          method: "DELETE",
+        });
+
+        if (response.ok) {
+          console.log(`[Test Cleanup] Deleted session ${sessionId}`);
+        } else {
+          console.warn(`[Test Cleanup] Failed to delete session ${sessionId}: ${response.status}`);
+        }
+      } catch (error) {
+        console.warn(`[Test Cleanup] Error deleting session ${sessionId}:`, error);
+      }
+    }
+  });
+
   test("complete conversation with text response", async () => {
     // Create session
     const session = await createSession(
       TEST_WORKING_DIR,
-      "Integration Test",
+      "[TEST] Integration Test - Text Response",
       "anthropic",
       "claude-3-5-haiku-latest"
     );
 
     expect(session.id).toBeDefined();
+    createdSessionIds.push(session.id); // Track for cleanup
 
     // Send message (this will be a real API call to backend)
     const response = await fetch(
@@ -64,10 +89,12 @@ describe("Integration: Conversation Flow", () => {
   test("conversation with tool execution", async () => {
     const session = await createSession(
       TEST_WORKING_DIR,
-      "Tool Test",
+      "[TEST] Integration Test - Tool Execution",
       "anthropic",
       "claude-3-5-haiku-latest"
     );
+
+    createdSessionIds.push(session.id); // Track for cleanup
 
     // Send message requesting file read
     const response = await fetch(
