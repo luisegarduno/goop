@@ -10,6 +10,8 @@
     "db:migrate": "bun run src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "test": "bun test",
+    "test:integration": "bun test test/integration/",
+    "test:unit": "bun test --exclude 'test/integration/**'",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

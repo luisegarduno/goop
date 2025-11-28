@@ -7,20 +7,30 @@ import type {
 
 /**
  * Mock provider that returns predefined responses
+ * Supports multi-turn conversations by popping events from queue
  */
 export class MockProvider implements Provider {
   name = "mock";
-  private responses: StreamEvent[];
+  private responses: StreamEvent[][];
+  private callCount = 0;
 
-  constructor(responses: StreamEvent[] = []) {
-    this.responses = responses;
+  constructor(responses: StreamEvent[] | StreamEvent[][] = []) {
+    // Support both single array and array of arrays
+    if (responses.length > 0 && Array.isArray(responses[0]) && 'type' in responses[0] === false) {
+      this.responses = responses as StreamEvent[][];
+    } else {
+      this.responses = [responses as StreamEvent[]];
+    }
   }
 
   async *stream(
     messages: ProviderMessage[],
     tools: ToolDefinition[]
   ): AsyncGenerator<StreamEvent> {
-    for (const event of this.responses) {
+    const eventsToYield = this.responses[this.callCount] || [];
+    this.callCount++;
+
+    for (const event of eventsToYield) {
       yield event;
     }
   }
