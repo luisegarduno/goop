@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { Tool, ToolContext } from "./base";
-import { readFile } from "fs/promises";
 import { resolve, sep } from "path";
 
 export const ReadFileInputSchema = z.object({
@@ -26,7 +25,7 @@ export class ReadFileTool implements Tool<ReadFileInput> {
         );
       }
 
-      const content = await readFile(filePath, "utf-8");
+      const content = await Bun.file(filePath).text();
       return content;
     } catch (error: any) {
       if (error.code === "ENOENT") {

@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { Tool, ToolContext } from "./base";
-import { readFile, writeFile } from "fs/promises";
 import { resolve, sep } from "path";
 
 export const EditFileInputSchema = z.object({
@@ -36,7 +35,7 @@ export class EditFileTool implements Tool<EditFileInput> {
       }
 
       // Read current content
-      const content = await readFile(filePath, "utf-8");
+      const content = await Bun.file(filePath).text();
 
       // Check if old_string exists
       if (!content.includes(input.old_string)) {
@@ -57,7 +56,7 @@ export class EditFileTool implements Tool<EditFileInput> {
       const newContent = content.replaceAll(input.old_string, input.new_string);
 
       // Write back
-      await writeFile(filePath, newContent, "utf-8");
+      await Bun.write(filePath, newContent);
 
       return `Successfully replaced ${occurrences} occurrence(s) in ${input.path}`;
     } catch (error: any) {

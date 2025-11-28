@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { Tool, ToolContext } from "./base";
-import { readFile } from "fs/promises";
 import { resolve, relative, sep } from "path";
 import fg from "fast-glob";
 
@@ -137,7 +136,7 @@ export class GrepTool implements Tool<GrepInput> {
         checkTimeout();
 
         try {
-          const content = await readFile(filePath, "utf-8");
+          const content = await Bun.file(filePath).text();
           const lines = content.split("\n");
           const relPath = relative(context.workingDir, filePath);
           const matchedLines = new Set<number>();

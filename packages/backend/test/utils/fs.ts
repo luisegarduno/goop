@@ -1,4 +1,4 @@
-import { mkdir, writeFile, rm } from "fs/promises";
+import { rm } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 
@@ -7,7 +7,8 @@ import { tmpdir } from "os";
  */
 export async function createTestDir(prefix: string = "goop-test-"): Promise<string> {
   const dir = join(tmpdir(), `${prefix}${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  await mkdir(dir, { recursive: true });
+  // Create a dummy file to ensure directory exists (Bun.write creates parent dirs)
+  await Bun.write(join(dir, ".gitkeep"), "");
   return dir;
 }
 
@@ -20,7 +21,7 @@ export async function createTestFile(
   content: string
 ): Promise<string> {
   const filePath = join(dir, filename);
-  await writeFile(filePath, content, "utf-8");
+  await Bun.write(filePath, content);
   return filePath;
 }
 

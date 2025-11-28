@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { Tool, ToolContext } from "./base";
-import { writeFile, mkdir, stat } from "fs/promises";
-import { resolve, dirname, sep } from "path";
+import { resolve, sep } from "path";
 
 export const WriteFileInputSchema = z.object({
   path: z.string().describe("The file path to write (relative to working directory)"),
@@ -28,23 +27,14 @@ export class WriteFileTool implements Tool<WriteFileInput> {
       }
 
       // Check if file exists before writing
-      const fileExisted = await stat(filePath).then(() => true).catch(() => false);
+      const fileExisted = await Bun.file(filePath).exists();
 
-      // Ensure parent directory exists
-      const dir = dirname(filePath);
-      const dirExisted = await stat(dir).then(() => true).catch(() => false);
-      await mkdir(dir, { recursive: true });
-
-      // Write the file
-      await writeFile(filePath, input.content, "utf-8");
+      // Write the file (Bun.write automatically creates parent directories)
+      await Bun.write(filePath, input.content);
 
       const bytes = Buffer.byteLength(input.content, "utf-8");
       const action = fileExisted ? "overwrote" : "created";
-      let message = `Successfully ${action} ${input.path} (${bytes} bytes)`;
-      if (!dirExisted) {
-        message += " (created parent directories)";
-      }
-      return message;
+      return `Successfully ${action} ${input.path} (${bytes} bytes)`;
     } catch (error: any) {
       if (error.code === "EACCES") {
         throw new Error(`Permission denied: ${input.path}`);
