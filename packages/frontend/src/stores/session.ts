@@ -5,7 +5,7 @@ interface MessagePart {
   text?: string;
   name?: string;
   result?: string;
-  input?: any;
+  input?: Record<string, unknown>;
 }
 
 interface Message {
@@ -30,7 +30,7 @@ interface SessionStore {
   addMessage: (message: Message) => void;
   setMessages: (messages: Message[]) => void;
   appendText: (text: string) => void;
-  addToolUse: (toolName: string, input: any) => void;
+  addToolUse: (toolName: string, input: Record<string, unknown>) => void;
   addToolResult: (result: string) => void;
   startNewMessage: () => void;
   finishStreaming: () => void;

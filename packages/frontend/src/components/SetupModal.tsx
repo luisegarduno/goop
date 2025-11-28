@@ -98,7 +98,7 @@ export function SetupModal({ onComplete }: SetupModalProps) {
         body: JSON.stringify({ provider, apiKey }),
       });
 
-      let data: any = {};
+      let data: { valid?: boolean; error?: string } = {};
       if (res.ok) {
         data = await res.json();
         if (data.valid) {
@@ -164,12 +164,12 @@ export function SetupModal({ onComplete }: SetupModalProps) {
 
       // Success - notify parent
       onComplete(session.id, workingDirectory.trim(), provider, model);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to create session:", error);
 
       // Extract error message from response
       let errorMessage = "Failed to create session";
-      if (error.message) {
+      if (error instanceof Error) {
         errorMessage = error.message;
       } else if (typeof error === 'string') {
         errorMessage = error;

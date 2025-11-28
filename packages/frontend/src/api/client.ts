@@ -91,7 +91,7 @@ interface BackendMessagePart {
   id: string;
   messageId: string;
   type: string;
-  content: any;
+  content: Record<string, unknown>;
   order: number;
 }
 
@@ -111,7 +111,7 @@ export interface FrontendMessage {
     text?: string;
     name?: string;
     result?: string;
-    input?: any;
+    input?: Record<string, unknown>;
   }>;
 }
 
@@ -127,18 +127,18 @@ export async function getMessages(sessionId: string): Promise<FrontendMessage[]>
       if (part.type === "text") {
         return {
           type: "text" as const,
-          text: part.content.text,
+          text: part.content.text as string,
         };
       } else if (part.type === "tool_use") {
         return {
           type: "tool_use" as const,
-          name: part.content.name,
-          input: part.content.input,
+          name: part.content.name as string,
+          input: part.content.input as Record<string, unknown>,
         };
       } else if (part.type === "tool_result") {
         return {
           type: "tool_result" as const,
-          result: part.content.content,
+          result: part.content.content as string,
         };
       }
       // Fallback
