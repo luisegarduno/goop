@@ -28,6 +28,11 @@ beforeEach(async () => {
   // Mock the validation utilities to avoid real API calls
   mock.module("../utils/validation", () => ({
     validateProviderApiKey: async (provider: string, apiKey: string) => {
+      // Check for unknown providers first
+      if (provider !== "anthropic" && provider !== "openai") {
+        throw new Error(`Unknown provider: ${provider}`);
+      }
+
       // Mock validation - just check basic format
       if (provider === "anthropic" && !apiKey.startsWith("sk-ant-")) {
         throw new Error("Invalid Anthropic API key format");
@@ -119,6 +124,8 @@ afterEach(async () => {
   // Clean up environment variables
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.OPENAI_API_KEY;
+  // Restore all mocks to prevent interference with other tests
+  mock.restore();
 });
 
 describe("Provider Endpoints", () => {

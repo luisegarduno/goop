@@ -8,6 +8,12 @@ export async function validateProviderApiKey(
   provider: "anthropic" | "openai",
   apiKey: string
 ): Promise<void> {
+  // Runtime check for unknown providers (in case someone casts to any)
+  const validProviders = ["anthropic", "openai"];
+  if (!validProviders.includes(provider)) {
+    throw new Error(`Unknown provider: ${provider}`);
+  }
+
   if (provider === "anthropic") {
     const Anthropic = (await import("@anthropic-ai/sdk")).default;
     const client = new Anthropic({ apiKey });
@@ -24,7 +30,5 @@ export async function validateProviderApiKey(
 
     // Test OpenAI API key by listing models
     await client.models.list();
-  } else {
-    throw new Error(`Unknown provider: ${provider}`);
   }
 }
