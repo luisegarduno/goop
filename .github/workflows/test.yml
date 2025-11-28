@@ -70,6 +70,9 @@ jobs:
       - name: Create test .env file
         run: |
           cat > .env << EOF
+          POSTGRES_DB=db
+          POSTGRES_USER=goop
+          POSTGRES_PASSWORD=pass123
           DATABASE_URL=postgresql://goop:pass123@localhost:5432/db
           ANTHROPIC_API_KEY=test-key-not-used-in-tests
           OPENAI_API_KEY=test-key-not-used-in-tests
