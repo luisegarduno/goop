@@ -77,3 +77,20 @@ export async function clearDatabase(db: any) {
   await db.delete(schema.messages);
   await db.delete(schema.sessions);
 }
+
+/**
+ * Helper to create a test session
+ */
+export async function createTestSession(db: any, overrides: any = {}) {
+  const [session] = await db
+    .insert(schema.sessions)
+    .values({
+      title: "Test Session",
+      workingDirectory: "/tmp",
+      provider: "anthropic",
+      model: "claude-3-5-haiku-latest",
+      ...overrides,
+    })
+    .returning();
+  return session;
+}
