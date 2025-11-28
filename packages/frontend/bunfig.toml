@@ -1,0 +1,34 @@
+# Bun configuration for frontend package
+
+[test]
+# Enable code coverage by default
+coverage = true
+
+# Coverage reporters: text (console output) and lcov (for CI/CD)
+coverageReporter = ["text", "lcov"]
+
+# Output directory for coverage reports
+coverageDir = "./coverage"
+
+# Coverage thresholds - tests will fail if below these percentages
+# Targeting 75% coverage for frontend (UI testing has diminishing returns)
+coverageThreshold = { lines = 0.75, functions = 0.75, statements = 0.75, branches = 0.70 }
+
+# Skip coverage for test files themselves
+coverageSkipTestFiles = true
+
+# Patterns to exclude from coverage
+coveragePathIgnorePatterns = [
+  "src/main.tsx",               # Entry point file
+  "*.config.ts",                # Configuration files
+  "*.config.js",                # Configuration files
+  "dist/**",                    # Build output
+  "node_modules/**",            # Dependencies
+  "vite.config.ts",             # Vite configuration
+  "eslint.config.js",           # ESLint configuration
+]
+
+# Test file patterns
+# By default, Bun looks for *.test.ts, *.test.tsx, *.spec.ts, *.spec.tsx
+# This is just for documentation - these are the defaults
+# testPattern = ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"]

@@ -1,0 +1,32 @@
+# Bun configuration for backend package
+
+[test]
+# Enable code coverage by default
+coverage = true
+
+# Coverage reporters: text (console output) and lcov (for CI/CD)
+coverageReporter = ["text", "lcov"]
+
+# Output directory for coverage reports
+coverageDir = "./coverage"
+
+# Coverage thresholds - tests will fail if below these percentages
+# Targeting 80% coverage for backend (high priority, core business logic)
+coverageThreshold = { lines = 0.8, functions = 0.8, statements = 0.8, branches = 0.75 }
+
+# Skip coverage for test files themselves
+coverageSkipTestFiles = true
+
+# Patterns to exclude from coverage
+coveragePathIgnorePatterns = [
+  "src/db/migrations/**",      # Generated migration files
+  "*.config.ts",                # Configuration files
+  "dist/**",                    # Build output
+  "node_modules/**",            # Dependencies
+  "src/db/migrate.ts",          # Migration runner script
+]
+
+# Test file patterns
+# By default, Bun looks for *.test.ts, *.test.tsx, *.spec.ts, *.spec.tsx
+# This is just for documentation - these are the defaults
+# testPattern = ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"]
