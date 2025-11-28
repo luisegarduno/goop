@@ -58,7 +58,11 @@ packages/backend/
 │   ├── tools/
 │   │   ├── base.ts          # Tool interface definition
 │   │   ├── index.ts         # Tool registry and execution
-│   │   └── read.ts          # Read file tool implementation
+│   │   ├── read.ts          # Read file tool implementation
+│   │   ├── write.ts         # Write file tool implementation
+│   │   ├── edit.ts          # Edit file tool implementation
+│   │   ├── grep.ts          # Grep tool implementation (regex search)
+│   │   └── glob.ts          # Glob tool implementation (file pattern matching)
 │   ├── utils/
 │   │   ├── security.ts      # Security utilities for path validation
 │   │   └── validation.ts    # API key validation utilities
@@ -66,6 +70,7 @@ packages/backend/
 ├── drizzle.config.ts        # Drizzle Kit configuration
 ├── package.json             # Backend package config
 └── tsconfig.json            # Backend TypeScript config
+```
 
 ## Frontend Package (`packages/frontend/`)
 
@@ -132,7 +137,7 @@ Three main tables with cascade delete relationships:
 - `src/providers/`: AI provider implementations (Anthropic and OpenAI, with provider registry)
 - `src/session/`: Session manager orchestrating conversations
 - `src/streaming/`: SSE event definitions
-- `src/tools/`: Tool implementations (currently read_file)
+- `src/tools/`: Tool implementations (read_file, write_file, edit_file, grep, glob)
 
 ### Frontend
 - `src/api/`: Backend communication layer

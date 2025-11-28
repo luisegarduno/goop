@@ -13,6 +13,7 @@
 - **Dotenv** (^17.2.3): Environment variable loading
 - **Anthropic SDK** (^0.24.0): Claude API integration with streaming support
 - **OpenAI SDK** (^6.9.1): GPT API integration with streaming support
+- **fast-glob** (^3.3.3): Fast file system globbing for grep and glob tools
 
 ## Frontend (`frontend`)
 - **React 19**: UI framework
