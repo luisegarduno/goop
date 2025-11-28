@@ -192,8 +192,8 @@ function App() {
               } else if (data.type === 'tool.result') {
                 addToolResult(data.result);
               }
-            } catch (e) {
-              // Ignore parse errors for non-JSON lines
+            } catch {
+              // Ignore JSON parse errors for malformed SSE events
             }
           }
         }

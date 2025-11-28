@@ -68,7 +68,7 @@ export function SessionSwitcher() {
     }
   }, [focusedIndex, isOpen, sessions.length]);
 
-  const handleSessionSelect = async (session: SessionInfo) => {
+  const handleSessionSelect = useCallback(async (session: SessionInfo) => {
     if (session.id === sessionId) {
       // Already on this session
       setIsOpen(false);
@@ -95,7 +95,7 @@ export function SessionSwitcher() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId, loadSession]);
 
   const handleButtonKeyDown = useCallback((event: React.KeyboardEvent) => {
     // Open dropdown with arrow down, Enter, or Space when closed
