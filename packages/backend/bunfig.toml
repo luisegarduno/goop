@@ -12,7 +12,7 @@ coverageDir = "./coverage"
 
 # Coverage thresholds - tests will fail if below these percentages
 # Targeting 80% coverage for backend (high priority, core business logic)
-coverageThreshold = { lines = 0.8, functions = 0.8, statements = 0.8, branches = 0.75 }
+coverageThreshold = { line = 0.8, function = 0.8, statement = 0.8 }
 
 # Skip coverage for test files themselves
 coverageSkipTestFiles = true
