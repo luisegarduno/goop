@@ -86,38 +86,44 @@ describe("Provider Endpoints", () => {
     expect(error).toHaveProperty("error");
   });
 
-  test("POST /providers/validate - validates Anthropic API key format", async () => {
-    const res = await app.request("/api/providers/validate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        provider: "anthropic",
-        apiKey: process.env.ANTHROPIC_API_KEY,
-      }),
-    });
+  test.skipIf(!process.env.ANTHROPIC_API_KEY)(
+    "POST /providers/validate - validates Anthropic API key format",
+    async () => {
+      const res = await app.request("/api/providers/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: "anthropic",
+          apiKey: process.env.ANTHROPIC_API_KEY,
+        }),
+      });
 
-    // Note: This will fail validation because it's not a real key
-    // but it should return a structured response
-    expect([200, 400]).toContain(res.status);
-    const result = (await res.json()) as any;
-    expect(result).toHaveProperty("valid");
-  });
+      // Note: This will fail validation because it's not a real key
+      // but it should return a structured response
+      expect([200, 400]).toContain(res.status);
+      const result = (await res.json()) as any;
+      expect(result).toHaveProperty("valid");
+    }
+  );
 
-  test("POST /providers/validate - validates OpenAI API key format", async () => {
-    const res = await app.request("/api/providers/validate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        provider: "openai",
-        apiKey: process.env.OPENAI_API_KEY,
-      }),
-    });
+  test.skipIf(!process.env.OPENAI_API_KEY)(
+    "POST /providers/validate - validates OpenAI API key format",
+    async () => {
+      const res = await app.request("/api/providers/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: "openai",
+          apiKey: process.env.OPENAI_API_KEY,
+        }),
+      });
 
-    // Note: This will fail validation because it's not a real key
-    expect([200, 400]).toContain(res.status);
-    const result = (await res.json()) as any;
-    expect(result).toHaveProperty("valid");
-  });
+      // Note: This will fail validation because it's not a real key
+      expect([200, 400]).toContain(res.status);
+      const result = (await res.json()) as any;
+      expect(result).toHaveProperty("valid");
+    }
+  );
 
   test("POST /providers/validate - returns 400 for missing fields", async () => {
     const res = await app.request("/api/providers/validate", {
@@ -129,26 +135,32 @@ describe("Provider Endpoints", () => {
     expect(res.status).toBe(400);
   });
 
-  test("GET /providers/:name/api-key - returns masked Anthropic key", async () => {
-    const res = await app.request("/api/providers/anthropic/api-key");
-    expect(res.status).toBe(200);
+  test.skipIf(!process.env.ANTHROPIC_API_KEY)(
+    "GET /providers/:name/api-key - returns masked Anthropic key",
+    async () => {
+      const res = await app.request("/api/providers/anthropic/api-key");
+      expect(res.status).toBe(200);
 
-    const result = (await res.json()) as any;
-    expect(result).toHaveProperty("apiKey");
-    expect(result).toHaveProperty("isConfigured");
-    expect(result.isConfigured).toBe(true);
-    expect(result.apiKey).toContain("***");
-  });
+      const result = (await res.json()) as any;
+      expect(result).toHaveProperty("apiKey");
+      expect(result).toHaveProperty("isConfigured");
+      expect(result.isConfigured).toBe(true);
+      expect(result.apiKey).toContain("***");
+    }
+  );
 
-  test("GET /providers/:name/api-key - returns masked OpenAI key", async () => {
-    const res = await app.request("/api/providers/openai/api-key");
-    expect(res.status).toBe(200);
+  test.skipIf(!process.env.OPENAI_API_KEY)(
+    "GET /providers/:name/api-key - returns masked OpenAI key",
+    async () => {
+      const res = await app.request("/api/providers/openai/api-key");
+      expect(res.status).toBe(200);
 
-    const result = (await res.json()) as any;
-    expect(result).toHaveProperty("apiKey");
-    expect(result).toHaveProperty("isConfigured");
-    expect(result.isConfigured).toBe(true);
-  });
+      const result = (await res.json()) as any;
+      expect(result).toHaveProperty("apiKey");
+      expect(result).toHaveProperty("isConfigured");
+      expect(result.isConfigured).toBe(true);
+    }
+  );
 
   test("GET /providers/:name/api-key - returns 400 for unknown provider", async () => {
     const res = await app.request("/api/providers/unknown/api-key");
@@ -525,20 +537,23 @@ describe("Message Endpoints", () => {
     expect(messages[1].parts[0].content.text).toBe("Second");
   });
 
-  test("POST /sessions/:id/messages - returns SSE stream", async () => {
-    const session = await createTestSession(db);
+  test.skipIf(!process.env.ANTHROPIC_API_KEY)(
+    "POST /sessions/:id/messages - returns SSE stream",
+    async () => {
+      const session = await createTestSession(db);
 
-    const res = await app.request(`/api/sessions/${session.id}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: "Hello" }),
-    });
+      const res = await app.request(`/api/sessions/${session.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "Hello" }),
+      });
 
-    expect(res.status).toBe(200);
-    expect(res.headers.get("Content-Type")).toBe("text/event-stream");
-    expect(res.headers.get("Cache-Control")).toBe("no-cache");
-    expect(res.headers.get("Connection")).toBe("keep-alive");
-  });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("text/event-stream");
+      expect(res.headers.get("Cache-Control")).toBe("no-cache");
+      expect(res.headers.get("Connection")).toBe("keep-alive");
+    }
+  );
 
   test("POST /sessions/:id/messages - returns 404 for nonexistent session", async () => {
     const res = await app.request(

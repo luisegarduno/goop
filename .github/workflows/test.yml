@@ -82,10 +82,16 @@ jobs:
           cd packages/backend
           bun run db:migrate
 
+      - name: Setup test files
+        run: |
+          echo "dummy content" > packages/backend/test.txt
+          echo "sample" > packages/backend/file.txt
+          echo "hello" > packages/backend/x.txt
+
       - name: Run backend tests with coverage
         run: |
           cd packages/backend
-          bun test --coverage
+          bun run test:unit --coverage
 
       - name: Upload backend coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -101,7 +107,7 @@ jobs:
           cd packages/backend
           # This will fail if coverage is below thresholds defined in bunfig.toml
           # For now, we'll make this a warning by using || true
-          bun test --coverage || true
+          bun run test:unit --coverage || true
 
   # Job 3: Frontend Tests
   frontend-tests:
