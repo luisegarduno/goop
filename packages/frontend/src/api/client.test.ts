@@ -32,7 +32,7 @@ describe("API Client - Session Operations", () => {
 
     global.fetch = createMockFetch({
       "POST http://localhost:3001/api/sessions": { data: mockResponse },
-    }) as any;
+    }) as typeof global.fetch;
 
     const result = await createSession(
       "/tmp",
@@ -60,7 +60,7 @@ describe("API Client - Session Operations", () => {
       "PATCH http://localhost:3001/api/sessions/session-456": {
         data: mockResponse,
       },
-    }) as any;
+    }) as typeof global.fetch;
 
     const result = await updateSession("session-456", {
       title: "Updated",
@@ -86,7 +86,7 @@ describe("API Client - Session Operations", () => {
       "GET http://localhost:3001/api/sessions/session-789": {
         data: mockResponse,
       },
-    }) as any;
+    }) as typeof global.fetch;
 
     const result = await getSession("session-789");
 
@@ -117,7 +117,7 @@ describe("API Client - Session Operations", () => {
 
     global.fetch = createMockFetch({
       "GET http://localhost:3001/api/sessions": { data: mockResponse },
-    }) as any;
+    }) as typeof global.fetch;
 
     const result = await getAllSessions();
 
@@ -149,7 +149,7 @@ describe("API Client - Message Operations", () => {
       "GET http://localhost:3001/api/sessions/s1/messages": {
         data: backendMessages,
       },
-    }) as any;
+    }) as typeof global.fetch;
 
     const result = await getMessages("s1");
 
@@ -181,7 +181,7 @@ describe("API Client - Message Operations", () => {
       "GET http://localhost:3001/api/sessions/s2/messages": {
         data: backendMessages,
       },
-    }) as any;
+    }) as typeof global.fetch;
 
     const result = await getMessages("s2");
 
@@ -214,7 +214,7 @@ describe("API Client - Message Operations", () => {
       "GET http://localhost:3001/api/sessions/s3/messages": {
         data: backendMessages,
       },
-    }) as any;
+    }) as typeof global.fetch;
 
     const result = await getMessages("s3");
 

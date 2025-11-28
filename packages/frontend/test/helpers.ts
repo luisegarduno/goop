@@ -1,9 +1,17 @@
-import type { SessionStore } from "../src/stores/session";
+/**
+ * Type for mock fetch responses
+ */
+export interface MockFetchResponse {
+  ok?: boolean;
+  status?: number;
+  data: unknown;
+  headers?: Record<string, string>;
+}
 
 /**
  * Creates a mock fetch function for API testing
  */
-export function createMockFetch(responses: Record<string, any>) {
+export function createMockFetch(responses: Record<string, MockFetchResponse>) {
   return async (url: string, options?: RequestInit) => {
     const key = `${options?.method || "GET"} ${url}`;
     const response = responses[key];
@@ -26,7 +34,7 @@ export function createMockFetch(responses: Record<string, any>) {
  * Creates a mock ReadableStream for SSE testing
  */
 export function createMockSSEStream(
-  events: Array<{ type: string; data: any }>
+  events: Array<{ type: string; data: unknown }>
 ) {
   const encoder = new TextEncoder();
   let index = 0;
@@ -48,7 +56,11 @@ export function createMockSSEStream(
 /**
  * Reset Zustand store to initial state
  */
-export function resetStore(store: any) {
+export function resetStore(
+  store: {
+    setState: (state: Record<string, unknown>) => void;
+  }
+) {
   store.setState({
     sessionId: null,
     workingDirectory: null,

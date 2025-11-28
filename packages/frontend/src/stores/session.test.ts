@@ -4,7 +4,7 @@ import { MockLocalStorage, resetStore } from "../../test/helpers";
 
 // Mock localStorage
 const mockLocalStorage = new MockLocalStorage();
-global.localStorage = mockLocalStorage as any;
+global.localStorage = mockLocalStorage as Storage;
 
 beforeEach(() => {
   mockLocalStorage.clear();
