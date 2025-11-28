@@ -316,6 +316,25 @@ apiRoutes.patch("/sessions/:id", async (c) => {
   return c.json(updatedSession);
 });
 
+// Delete session
+apiRoutes.delete("/sessions/:id", async (c) => {
+  const sessionId = c.req.param("id");
+
+  // Check if session exists
+  const session = await db.query.sessions.findFirst({
+    where: eq(sessions.id, sessionId),
+  });
+
+  if (!session) {
+    return c.json({ error: "Session not found" }, 404);
+  }
+
+  // Delete session (cascade will delete messages and message parts)
+  await db.delete(sessions).where(eq(sessions.id, sessionId));
+
+  return c.json({ success: true, message: "Session deleted" });
+});
+
 // List sessions
 apiRoutes.get("/sessions", async (c) => {
   const allSessions = await db.query.sessions.findMany({

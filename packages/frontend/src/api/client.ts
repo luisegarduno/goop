@@ -57,6 +57,23 @@ export async function updateSession(
   return res.json();
 }
 
+export async function deleteSession(sessionId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+
+  if (!res.ok) {
+    let errorMessage = `Failed to delete session: ${res.status}`;
+    try {
+      const error = await res.json();
+      errorMessage = error.error || errorMessage;
+    } catch {
+      // If not JSON, use the status code message
+    }
+    throw new Error(errorMessage);
+  }
+}
+
 export async function getSession(id: string) {
   const res = await fetch(`${API_BASE}/sessions/${id}`);
   return res.json();

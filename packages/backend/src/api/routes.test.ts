@@ -435,6 +435,58 @@ describe("Session Endpoints", () => {
     const sessions = (await res.json()) as any;
     expect(sessions).toHaveLength(0);
   });
+
+  test("DELETE /sessions/:id - deletes session and cascade deletes messages", async () => {
+    const session = await createTestSession(db);
+
+    // Create a message for this session
+    const [message] = await db
+      .insert(schema.messages)
+      .values({
+        sessionId: session.id,
+        role: "user",
+      })
+      .returning();
+
+    await db.insert(schema.messageParts).values({
+      messageId: message.id,
+      type: "text",
+      content: { text: "Test message" },
+      order: 0,
+    });
+
+    // Delete the session
+    const res = await app.request(`/api/sessions/${session.id}`, {
+      method: "DELETE",
+    });
+
+    expect(res.status).toBe(200);
+    const result = (await res.json()) as any;
+    expect(result.success).toBe(true);
+
+    // Verify session is deleted
+    const deletedSession = await db.query.sessions.findFirst({
+      where: (sessions: any, { eq }: any) => eq(sessions.id, session.id),
+    });
+    expect(deletedSession).toBeUndefined();
+
+    // Verify messages were cascade deleted
+    const deletedMessages = await db.query.messages.findMany({
+      where: (messages: any, { eq }: any) => eq(messages.sessionId, session.id),
+    });
+    expect(deletedMessages).toHaveLength(0);
+  });
+
+  test("DELETE /sessions/:id - returns 404 for nonexistent session", async () => {
+    const res = await app.request(
+      "/api/sessions/00000000-0000-0000-0000-000000000000",
+      {
+        method: "DELETE",
+      }
+    );
+
+    expect(res.status).toBe(404);
+  });
 });
 
 describe("Message Endpoints", () => {
