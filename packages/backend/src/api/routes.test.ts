@@ -16,10 +16,65 @@ beforeEach(async () => {
   db = testDb.db;
   client = testDb.client;
 
+  // Set dummy API keys for testing (these won't be used for real API calls)
+  process.env.ANTHROPIC_API_KEY = "sk-ant-api03-test1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+  process.env.OPENAI_API_KEY = "sk-proj-test1234567890abcdef1234567890abcdef1234567890abcdef";
+
   // Mock the database module to use our test database
   mock.module("../db/index", () => ({
     db: db,
   }));
+
+  // Mock the validation utilities to avoid real API calls
+  mock.module("../utils/validation", () => ({
+    validateProviderApiKey: async (provider: string, apiKey: string) => {
+      // Mock validation - just check basic format
+      if (provider === "anthropic" && !apiKey.startsWith("sk-ant-")) {
+        throw new Error("Invalid Anthropic API key format");
+      }
+      if (provider === "openai" && !apiKey.startsWith("sk-")) {
+        throw new Error("Invalid OpenAI API key format");
+      }
+      // If format is correct, validation passes
+      return;
+    },
+  }));
+
+  // Mock provider constructors to not require real API keys
+  mock.module("../providers/anthropic", () => {
+    return {
+      ANTHROPIC_MODELS: [
+        "claude-3-haiku-20240307",
+        "claude-3-5-haiku-latest",
+        "claude-opus-4-0",
+        "claude-sonnet-4-0",
+        "claude-opus-4-1",
+        "claude-haiku-4-5",
+        "claude-opus-4-5",
+        "claude-sonnet-4-5",
+      ],
+      AnthropicProvider: class MockAnthropicProvider {
+        name = "anthropic";
+        constructor(model: string, apiKey?: string) {}
+        async *stream() {
+          yield { type: "text", text: "Mock Anthropic response" };
+        }
+      },
+    };
+  });
+
+  mock.module("../providers/openai", () => {
+    return {
+      OPENAI_MODELS: ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"],
+      OpenAIProvider: class MockOpenAIProvider {
+        name = "openai";
+        constructor(model: string, apiKey?: string) {}
+        async *stream() {
+          yield { type: "text", text: "Mock OpenAI response" };
+        }
+      },
+    };
+  });
 
   // Mock the SessionManager to avoid making real API calls during tests
   mock.module("../session/index", () => {
@@ -61,6 +116,9 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await teardownTestDatabase();
+  // Clean up environment variables
+  delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.OPENAI_API_KEY;
 });
 
 describe("Provider Endpoints", () => {
