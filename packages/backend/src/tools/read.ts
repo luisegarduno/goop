@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { Tool, ToolContext } from "./base";
-import { readFile } from "fs/promises";
 import { resolve, sep } from "path";
 
 export const ReadFileInputSchema = z.object({
@@ -26,11 +25,16 @@ export class ReadFileTool implements Tool<ReadFileInput> {
         );
       }
 
-      const content = await readFile(filePath, "utf-8");
+      const file = Bun.file(filePath);
+      if (!(await file.exists())) {
+        throw new Error(`File not found: ${input.path}`);
+      }
+
+      const content = await file.text();
       return content;
     } catch (error: any) {
-      if (error.code === "ENOENT") {
-        throw new Error(`File not found: ${input.path}`);
+      if (error.message?.includes("File not found")) {
+        throw error;
       }
       throw new Error(`Failed to read file: ${error.message}`);
     }
