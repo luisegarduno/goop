@@ -1,739 +1,301 @@
 # goop Frontend
 
-The web-based user interface for the goop AI Coding Agent, featuring a terminal-like chat interface with real-time streaming responses.
+Web UI for the goop AI Coding Agent. Terminal-style interface with real-time streaming responses from Claude or GPT.
 
 ## Overview
 
-This frontend package provides a minimal, terminal-inspired UI for interacting with AI coding assistants. Built with React 19 and TypeScript, it emphasizes simplicity, performance, and a developer-friendly aesthetic.
+React 19 frontend with a developer-focused terminal aesthetic. Connects to the Hono backend for AI-powered file operations and conversation management.
 
 **Key Features:**
 
-- Terminal-style dark UI with monospace fonts
-- Real-time streaming of AI responses via Server-Sent Events (SSE)
-- Visual indicators for tool execution (read, write, edit, grep, glob tools)
-- Session persistence across page refreshes with working directory configuration
-- Initial setup modal for session title, working directory, provider, model, and API key configuration
-- Settings modal for updating session configuration (provider, model, working directory)
-- Multi-provider support (Anthropic Claude, OpenAI GPT) with API key validation
-- Type-safe API communication with backend
-- Zustand-based state management
+- Terminal-style UI with SSE streaming
+- Multi-session management with independent working directories
+- Multi-provider support (Anthropic Claude, OpenAI GPT)
+- Real-time tool execution visualization (read, write, edit, grep, glob)
+- Session persistence with localStorage + PostgreSQL
+- Zustand state management
+- TailwindCSS 4 styling
 
 ## Tech Stack
 
-### Core Dependencies
-
-- **React 19** (^19.2.0) - UI framework with latest features
-- **TypeScript** (~5.9.3) - Type safety and enhanced DX
-- **Vite** (^7.2.4) - Lightning-fast build tool and dev server
-- **Zustand** (^5.0.8) - Lightweight state management (included as dev dependency)
-
-### Styling
-
-- **TailwindCSS 4** (^4.1.17) - Utility-first CSS framework
-- **@tailwindcss/vite** (^4.1.17) - Vite plugin for Tailwind integration
-- Custom terminal color palette and monospace typography
-
-### Development Tools
-
-- **ESLint** (^9.39.1) - Code linting with React-specific rules
-- **@vitejs/plugin-react** (^5.1.1) - React Fast Refresh support
-- **@types/react** and **@types/react-dom** - Type definitions
+- **React 19** (^19.2.0) - UI framework
+- **TypeScript** (~5.9.3) - Type safety
+- **Vite** (^7.2.4) - Build tool & dev server
+- **Zustand** (^5.0.8) - State management
+- **TailwindCSS 4** (^4.1.17) - Styling with Vite plugin
+- **ESLint** (^9.39.1) - Linting
 
 ## Project Structure
 
 ```
 src/
 ├── api/
-│   └── client.ts              # Backend API communication layer
+│   └── client.ts           # Backend API calls
 ├── components/
-│   ├── InputBox.tsx           # Message input component with send button
-│   ├── SessionSwitcher.tsx    # Dropdown for switching between sessions
-│   ├── SetupModal.tsx         # Initial session configuration modal
-│   ├── SettingsModal.tsx      # Session settings update modal
-│   └── Terminal.tsx           # Main chat display with message rendering
+│   ├── Terminal.tsx        # Message display with auto-scroll
+│   ├── InputBox.tsx        # User input with auto-focus
+│   ├── SessionSwitcher.tsx # Session dropdown menu
+│   ├── SetupModal.tsx      # Session creation modal
+│   └── SettingsModal.tsx   # Settings update modal
 ├── hooks/
-│   └── useSSE.ts              # Server-Sent Events connection hook
+│   └── useSSE.ts           # EventSource SSE hook
 ├── stores/
-│   └── session.ts             # Zustand store for session and message state
+│   └── session.ts          # Zustand store
 ├── styles/
-│   └── index.css              # TailwindCSS configuration and custom styles
-├── App.tsx                    # Root application component
-└── main.tsx                   # Application entry point
+│   └── index.css           # Tailwind theme config
+├── App.tsx                 # Root component with SSE streaming
+└── main.tsx                # Entry point
 ```
-
-### Directory Breakdown
-
-**`src/api/`** - Backend Integration
-- `client.ts`: Functions for creating sessions, fetching sessions, fetching messages, and managing API communication. Includes `getAllSessions()` for retrieving all sessions, `SessionInfo` type for session metadata, and type transformations between backend and frontend message formats.
-
-**`src/components/`** - React Components
-- `Terminal.tsx`: Renders the message history and streaming responses. Displays user messages, assistant responses, tool usage, and tool results with appropriate styling. Includes auto-scroll functionality to keep the latest messages visible.
-- `InputBox.tsx`: Fixed-position input field with send button. Handles message submission and disables input during streaming. Automatically focuses input when streaming finishes.
-- `SetupModal.tsx`: Modal dialog for initial session configuration. Allows users to specify session title, working directory, AI provider (Anthropic/OpenAI), model selection, and API key before starting a conversation. Includes API key validation.
-- `SessionSwitcher.tsx`: Dropdown component for switching between existing sessions. Displays all sessions with titles, working directories, and last updated timestamps. Includes keyboard navigation support.
-- `SettingsModal.tsx`: Modal dialog for updating session settings. Allows users to change AI provider, model, working directory, and API key mid-session. Validates API key before saving changes.
-
-**`src/hooks/`** - React Hooks
-- `useSSE.ts`: EventSource-based hook for SSE connections to the `/events` endpoint. Note: The primary streaming implementation for message responses is handled directly in App.tsx using fetch streams and the `/messages` endpoint.
-
-**`src/stores/`** - State Management
-- `session.ts`: Zustand store managing session ID, messages, streaming state, and local storage persistence.
-
-**`src/styles/`** - Styling
-- `index.css`: TailwindCSS imports and custom theme configuration using Tailwind 4's `@theme` directive.
 
 ## Development Setup
 
 ### Prerequisites
 
-- **Bun** >= 1.0 (this monorepo uses Bun as the runtime)
-- Backend server running on `http://localhost:3001`
+- **Bun** >= 1.0
+- Backend running on `http://localhost:3001`
 
-### Installation
+### Commands
 
-From the monorepo root:
-
-```bash
-bun install
-```
-
-Or from the frontend package directory:
+Run from `packages/frontend`:
 
 ```bash
-cd packages/frontend
-bun install
+bun run dev       # Start dev server (port 3000)
+bun run build     # Type-check and build
+bun run preview   # Preview production build
+bun run typecheck # TypeScript check only
 ```
 
-### Available Scripts
+### Quick Start
 
-Run these from `packages/frontend`:
+1. Ensure backend is running
+2. Start dev server:
+   ```bash
+   cd packages/frontend
+   bun run dev
+   ```
+3. Open http://localhost:3000
+4. Configure session via setup modal (title, working directory, provider, model, API key)
+5. Start chatting
 
-- **`bun run dev`** - Start Vite dev server on port 3000 with hot module replacement
-- **`bun run build`** - Type-check with `tsc -b` and build production bundle with Vite
-- **`bun run preview`** - Preview production build locally
-- **`bun run typecheck`** - Run TypeScript type checking without emitting files
+> Session data persists in localStorage + PostgreSQL. Use Settings button to update provider/model mid-conversation.
 
-### Starting the Frontend
-
-1. Ensure the backend is running on port 3001
-2. Start the dev server:
-
-```bash
-cd packages/frontend
-bun run dev
-```
-
-3. Open http://localhost:3000 in your browser
-
-### Initial Setup Process
-
-When you first open the application (or when no valid session exists):
-
-1. **Setup Modal Appears**: You'll see a configuration dialog prompting for:
-   - **Session Title**: A descriptive name for your conversation (e.g., "Backend Refactor", "Bug Fix Session")
-   - **Working Directory**: The base path for file operations (defaults to current directory `.`)
-   - **AI Provider**: Choose between Anthropic Claude or OpenAI GPT
-   - **Model**: Select from available models for the chosen provider (dynamically fetched)
-   - **API Key**: Enter and validate your API key (or use the one configured in `.env`)
-
-2. **Configure Session**: Fill in the details or use the defaults:
-   - Title helps identify conversations in the future
-   - Working directory determines where all file operations (read, write, edit, grep, glob) will execute
-   - Example: Setting `/home/user/myproject` allows the AI to work with files relative to that path
-   - Provider and model determine which AI powers the conversation
-   - API key is validated before session creation (displays masked version from `.env` for reference)
-
-3. **Start Chatting**: After submission, the modal closes and you can start sending messages. The working directory, provider, and model are included automatically in all requests.
-
-**Example Commands:**
-- "Can you read the package.json file?"
-- "Can you update the version in package.json to 2.0.0?"
-- "Can you find all occurrences of 'TODO' in the codebase?"
-- "List all TypeScript files in the src directory"
-- "Show me the implementation of the Terminal component"
-
-**Notes:**
-- Session ID, working directory, provider, and model are saved to `localStorage` and persist across page refreshes
-- To change settings (provider, model, working directory), click the Settings button in the UI
-- Changing providers clears message history to ensure compatibility
-- Absolute paths in file operations override the working directory
-
-## Component Architecture
-
-### SetupModal.tsx
-
-Modal dialog for configuring new sessions before starting a conversation:
-
-- **Session Configuration**: Prompts user for session title, working directory, AI provider, model, and API key
-- **Provider Selection**: Fetches available providers from backend (Anthropic, OpenAI)
-- **Model Selection**: Dynamically loads models for selected provider
-- **API Key Validation**: Validates API key before session creation, displays masked version from `.env` for reference
-- **Working Directory**: Optional path specification for file operations (defaults to current directory)
-- **Session Creation**: Creates session via API with validated credentials and initializes store state
-- **User Experience**: Appears on first run or when no valid session exists
-
-**Props:**
-
-- `onComplete`: Callback fired with sessionId, workingDirectory, provider, and model for session initialization
-
-**Key Features:**
-
-- Validates input before submission
-- Provides sensible defaults (title: "New Conversation", workingDir: ".", provider: "anthropic")
-- Fetches provider-specific model lists dynamically
-- Validates API key against provider before creating session
-- Shows masked API key from `.env` below input field (input itself is NOT pre-populated)
-- Terminal-styled UI consistent with app theme
-
-### SettingsModal.tsx
-
-Modal dialog for updating session configuration mid-conversation:
-
-- **Provider & Model Updates**: Change AI provider and model without creating a new session
-- **Working Directory Updates**: Modify the base path for file operations
-- **API Key Re-validation**: Enter and validate new API keys
-- **Dynamic Model Loading**: Fetches fresh model list when provider changes
-- **Persistence**: Saves changes to backend via `updateSession` API
-
-**Props:**
-
-- `currentProvider`: Current provider name
-- `currentModel`: Current model name
-- `currentWorkingDirectory`: Current working directory
-- `onClose`: Callback to close modal
-- `onSave`: Callback fired with updated settings (provider, model, apiKey, workingDirectory)
-
-**Key Features:**
-
-- Fetches available providers and models dynamically
-- Displays masked API key from `.env` for reference
-- Validates new API key before saving
-- Allows users to use API key from `.env` without re-entering
-- Shows loading states during model fetching and key validation
-- Error handling with user-friendly messages
-- Terminal-styled UI with close button
-
-### SessionSwitcher.tsx
-
-Dropdown component for browsing and switching between existing chat sessions:
-
-- **Session List**: Fetches and displays all available sessions with metadata
-- **Session Metadata**: Shows session title, working directory, and formatted update timestamp (Today, Yesterday, or date)
-- **Active Session**: Highlights the currently active session with a green indicator
-- **Session Loading**: Loads session messages and switches context when a session is selected
-- **Keyboard Navigation**: Full keyboard support with arrow keys, Enter, Escape, Home, and End
-- **Accessibility**: Includes proper ARIA attributes and focus management
-- **Auto-refresh**: Refreshes session list when dropdown opens to ensure fresh data
-
-**Key Features:**
-
-- Fetches sessions from `getAllSessions()` API
-- Displays formatted timestamps (Today, Yesterday, X days ago, or date)
-- Click outside or press Escape to close dropdown
-- Prevents duplicate switching (checks if session is already active)
-- Error handling with dismissible error messages
-- Terminal-styled UI with proper focus indicators
+## Components
 
 ### App.tsx
 
-The root component orchestrates the entire application:
+Root component orchestrating the application:
 
-- **Session Management**: Creates or restores session from `localStorage` on mount, integrating SetupModal for new sessions
-- **Session Switching**: Renders SessionSwitcher dropdown and New Session button in top-right corner when a session is active
-- **Message Handling**: Processes user input and streams responses from backend
-- **SSE Streaming**: Uses Fetch API with `ReadableStream` to parse Server-Sent Events
-- **Event Dispatching**: Routes SSE events to appropriate Zustand store actions
-- **Working Directory**: Includes working directory in message requests for file operations
-- **Dual SSE Connection**: Uses both `useSSE` hook for the `/events` endpoint and fetch streaming for message responses
+- **Session Lifecycle**: Restores session from localStorage on mount, shows SetupModal if none exists
+- **SSE Streaming**: Handles fetch-based SSE stream parsing for `/api/sessions/:id/messages` endpoint
+- **Event Routing**: Dispatches SSE events (`message.start`, `message.delta`, `message.done`, `tool.start`, `tool.result`) to Zustand store
+- **UI Layout**: Renders Terminal, InputBox, SessionSwitcher, and modals
 
-**Key Flow:**
+### SetupModal.tsx
 
-1. On mount, attempts to restore previous session ID and working directory from `localStorage`
-2. If session exists on backend, loads message history and working directory
-3. If session doesn't exist, displays SetupModal for configuration
-4. After setup, creates session with specified title and saves working directory to store
-5. Renders SessionSwitcher and New Session button in absolute positioned top-right corner
-6. User sends message → POST to `/api/sessions/:id/messages`
-7. Backend responds with SSE stream
-8. App.tsx parses events and updates Zustand store in real-time
-9. Enhanced `message.start` event handling displays proper assistant headers after tool execution
+Session creation modal:
+
+- Prompts for session title, working directory, provider, model, and API key
+- Dynamically fetches provider list and model options
+- Validates API key before session creation
+- Shows masked `.env` API key for reference (input NOT pre-populated)
+
+### SettingsModal.tsx
+
+Settings update modal:
+
+- Update provider, model, working directory, and API key mid-conversation
+- Re-validates API keys on save
+- Changing providers clears message history (compatibility)
+
+### SessionSwitcher.tsx
+
+Session navigation dropdown:
+
+- Lists all sessions with title, working directory, and timestamp
+- Highlights active session
+- Keyboard navigation (arrows, Enter, Escape)
+- Loads session messages on switch
 
 ### Terminal.tsx
 
-Renders the conversation history and current streaming response:
+Message display component:
 
-- Maps over `messages` array to display completed messages
-- Shows `currentParts` and `currentText` for in-progress streaming
-- Distinguishes between user and assistant messages with color coding
-- Renders three part types: `text`, `tool_use`, `tool_result`
-- Displays animated cursor during streaming
-- **Auto-scroll**: Automatically scrolls to bottom when messages change or during streaming using `scrollIntoView`
-
-**Message Part Rendering:**
-
-- **text**: Displays with `whitespace-pre-wrap` to preserve formatting
-- **tool_use**: Shows tool name with wrench icon (🔧)
-- **tool_result**: Displays truncated result with arrow indicator (→)
+- Renders completed messages and streaming parts
+- Color-coded roles (user: cyan, assistant: green)
+- Renders `text`, `tool_use`, `tool_result` parts
+- Auto-scrolls to bottom during streaming
 
 ### InputBox.tsx
 
-Fixed-position input field at bottom of screen:
+User input component:
 
-- Text input with submit button
-- Disables during streaming to prevent concurrent requests
-- Clears input after successful submission
-- **Auto-focus**: Automatically refocuses input when streaming completes for better UX
-- Styled with terminal color scheme
+- Fixed-position input with send button
+- Disables during streaming
+- Auto-focuses when streaming completes
 
-**Props:**
+## State Management
 
-- `onSend`: Callback function invoked with the message text when user submits
+Zustand store in `src/stores/session.ts`:
 
-## State Management with Zustand
+**State:**
+- `sessionId`, `workingDirectory`, `provider`, `model` - Session config (persisted to localStorage)
+- `messages` - Completed message history
+- `isStreaming`, `currentText`, `currentParts` - Streaming state
 
-The `useSessionStore` hook provides centralized state management:
+**Key Actions:**
+- `loadSession` - Load session with ID, config, and messages
+- `setSessionId`, `setWorkingDirectory`, `setProvider`, `setModel` - Update config (persists to localStorage)
+- `clearSession` - Reset state and clear localStorage
+- `appendText` - Accumulate text deltas during streaming
+- `addToolUse`, `addToolResult` - Add message parts
+- `startNewMessage` - Reset streaming state for new assistant message
+- `finishStreaming` - Convert streaming parts to complete message
 
-### State Structure
+**LocalStorage Keys:**
+- `goop_session_id` - Session UUID
+- `goop_working_directory` - File operations base path
+- `goop_provider` - AI provider (anthropic, openai)
+- `goop_model` - Model name
 
-```typescript
-interface SessionStore {
-  sessionId: string | null;            // Current session UUID
-  workingDirectory: string | null;      // Working directory for file operations
-  provider: string | null;              // AI provider (anthropic, openai)
-  model: string | null;                 // Model name
-  messages: Message[];                  // Completed messages
-  isStreaming: boolean;                 // Whether AI is currently responding
-  currentText: string;                  // Accumulating text during stream
-  currentParts: MessagePart[];          // Completed parts of current message
-
-  // Actions
-  setSessionId: (id: string) => void;
-  setWorkingDirectory: (dir: string) => void;
-  setProvider: (provider: string) => void;
-  setModel: (model: string) => void;
-  addMessage: (message: Message) => void;
-  setMessages: (messages: Message[]) => void;
-  appendText: (text: string) => void;
-  addToolUse: (toolName: string, input: any) => void;
-  addToolResult: (result: string) => void;
-  startNewMessage: () => void;
-  finishStreaming: () => void;
-  setStreaming: (streaming: boolean) => void;
-  clearSession: () => void;
-  loadSession: (id: string, workingDir: string, provider: string, model: string, messages: Message[]) => void;
-}
-```
-
-### Key Actions
-
-**Session Management:**
-- `setSessionId`: Sets session ID and persists to `localStorage`
-- `setWorkingDirectory`: Sets working directory and persists to `localStorage`
-- `setProvider`: Sets AI provider and persists to `localStorage`
-- `setModel`: Sets model name and persists to `localStorage`
-- `clearSession`: Resets all state (including working directory, provider, model) and removes from `localStorage`
-- `loadSession`: Loads a complete session with ID, working directory, provider, model, and messages. Used by SessionSwitcher to switch between sessions. Persists to `localStorage`.
-
-**Message Management:**
-- `addMessage`: Appends a completed message to history
-- `setMessages`: Replaces entire message array (used during session restore)
-
-**Streaming Management:**
-- `appendText`: Accumulates text deltas during streaming
-- `addToolUse`: Saves accumulated text as part, adds tool_use part
-- `addToolResult`: Adds tool_result part
-- `startNewMessage`: Resets currentParts and currentText to prepare for a new message (used after tool execution)
-- `finishStreaming`: Converts current parts/text to complete message, resets streaming state
-
-### LocalStorage Persistence
-
-The following data is persisted to `localStorage`:
-
-- **Session ID** (`goop_session_id`): Current session UUID
-- **Working Directory** (`goop_working_directory`): Path for file operations
-- **Provider** (`goop_provider`): AI provider name (anthropic, openai)
-- **Model** (`goop_model`): Model name
-
-On page load, the app attempts to restore the session ID, working directory, provider, and model, then reloads messages from the backend. If the session doesn't exist on the backend, the SetupModal is displayed to configure a new session.
-
-## API Integration and SSE Streaming
+## API & SSE Streaming
 
 ### API Client (`src/api/client.ts`)
 
-**Functions:**
+Functions for backend communication:
 
-- `createSession(workingDirectory, title, provider, model, apiKey?)`: POST to `/api/sessions` → returns `SessionInfo`
-- `updateSession(sessionId, updates)`: PATCH to `/api/sessions/:id` → updates session settings (provider, model, workingDirectory) and returns updated `SessionInfo`
-- `getSession(id)`: GET `/api/sessions/:id` → returns session metadata
-- `getAllSessions()`: GET `/api/sessions` → returns `SessionInfo[]` with all sessions (sorted by updatedAt DESC)
-- `getMessages(sessionId)`: GET `/api/sessions/:id/messages` → returns message history
+- `createSession(workingDirectory, title, provider, model, apiKey?)` - Create new session
+- `updateSession(sessionId, updates)` - Update session settings
+- `getSession(id)` - Fetch session metadata
+- `getAllSessions()` - List all sessions (sorted by updatedAt DESC)
+- `getMessages(sessionId)` - Load message history
 
-**Provider-Related Endpoints** (accessed directly via fetch, not exported functions):
-
-- GET `/api/providers` → returns list of available providers with displayName
-- GET `/api/providers/:name/models` → returns `{ models: string[] }` for the specified provider
-- GET `/api/providers/:name/api-key` → returns `{ apiKey: string, isConfigured: boolean }` with masked API key from `.env`
-- POST `/api/providers/validate` → validates API key for a provider, body: `{ provider, apiKey }`
-
-**Types:**
-
-- `SessionInfo`: Contains `id`, `title`, `workingDirectory`, `provider`, `model`, `createdAt`, and `updatedAt` fields
-- `FrontendMessage`: Transformed message format for UI consumption
-
-**Type Transformations:**
-
-The backend stores message parts as `{ type, content, order }` where `content` is a JSONB field. The client transforms these to frontend-friendly types:
-
-```typescript
-// Backend format
-{
-  type: "text",
-  content: { text: "Hello" }
-}
-
-// Frontend format
-{
-  type: "text",
-  text: "Hello"
-}
-```
+Provider endpoints (accessed via fetch in modals):
+- `GET /api/providers` - List providers
+- `GET /api/providers/:name/models` - Get model list
+- `GET /api/providers/:name/api-key` - Get masked API key from `.env`
+- `POST /api/providers/validate` - Validate API key
 
 ### SSE Streaming
 
-The actual SSE implementation is in `App.tsx` (`handleSend` function):
+Implemented in `App.tsx` using fetch + `ReadableStream`:
 
-1. POST message to `/api/sessions/:id/messages`
-2. Backend responds with `Content-Type: text/event-stream`
-3. Parse stream using `ReadableStream` reader and `TextDecoder`
-4. Buffer incomplete lines, parse complete `data:` lines as JSON
-5. Dispatch events to Zustand store:
+1. POST to `/api/sessions/:id/messages` with user message
+2. Backend responds with `text/event-stream`
+3. Parse stream line-by-line, decode `data:` JSON payloads
+4. Dispatch events to Zustand:
+   - `message.start` - Initialize streaming
+   - `message.delta` - Append text chunk
+   - `message.done` - Finalize message
+   - `tool.start` - Add tool_use part
+   - `tool.result` - Add tool_result part
 
-**Event Types:**
+> Uses fetch instead of `EventSource` for better POST request control and error handling.
 
-- `message.start`: Initialize streaming state
-- `message.delta`: Append text chunk to current message
-- `message.done`: Finalize streaming, save message
-- `tool.start`: Add tool_use part with tool name and input
-- `tool.result`: Add tool_result part with execution result
+## Styling
 
-**Why Not EventSource?**
-
-While `useSSE.ts` demonstrates using `EventSource`, the production implementation uses `fetch` with `ReadableStream` because:
-
-- More control over request configuration
-- Same-origin POST request with response stream
-- Better error handling and cleanup
-
-## Styling with TailwindCSS 4
-
-### Configuration
-
-TailwindCSS 4 uses a new `@theme` directive for configuration instead of `tailwind.config.js`. The theme is defined in `src/styles/index.css`:
+TailwindCSS 4 with `@theme` directive in `src/styles/index.css`:
 
 ```css
 @theme {
-  --color-terminal-bg: #1a1a1a;
-  --color-terminal-text: #e0e0e0;
-  --color-terminal-user: #4fc3f7;
-  --color-terminal-assistant: #81c784;
-  --color-terminal-tool: #ffb74d;
-
+  --color-terminal-bg: #1a1a1a;        /* Dark background */
+  --color-terminal-text: #e0e0e0;      /* Light text */
+  --color-terminal-user: #4fc3f7;      /* Cyan (user) */
+  --color-terminal-assistant: #81c784; /* Green (assistant) */
+  --color-terminal-tool: #ffb74d;      /* Amber (tools) */
   --font-family-mono: Monaco, Menlo, Consolas, monospace;
 }
 ```
 
-### Color Palette
+Integrated via `@tailwindcss/vite` plugin in `vite.config.ts`.
 
-- **terminal-bg** (#1a1a1a): Dark background
-- **terminal-text** (#e0e0e0): Light gray text
-- **terminal-user** (#4fc3f7): Cyan for user messages
-- **terminal-assistant** (#81c784): Green for assistant messages
-- **terminal-tool** (#ffb74d): Amber for tool-related output
+## Extending the UI
 
-### Typography
+### Add Component
 
-The entire UI uses a monospace font stack (Monaco, Menlo, Consolas) applied to the `<body>` element via the `font-mono` utility.
+1. Create in `src/components/`, import `useSessionStore`
+2. Import and render in `App.tsx`
 
-### Vite Integration
+### Add Message Part Type
 
-TailwindCSS 4 is integrated via the `@tailwindcss/vite` plugin in `vite.config.ts`:
+1. Update `MessagePart` interface in `src/stores/session.ts`
+2. Add rendering logic in `Terminal.tsx`
+3. Add action to Zustand store
+4. Handle new SSE event in `App.tsx`
 
-```typescript
-import tailwindcss from "@tailwindcss/vite";
+### Customize Colors
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-});
-```
-
-## How to Extend the UI
-
-### Adding a New Component
-
-1. Create component in `src/components/`:
-
-```tsx
-// src/components/Toolbar.tsx
-import { useSessionStore } from "../stores/session";
-
-export function Toolbar() {
-  const { clearSession } = useSessionStore();
-
-  return (
-    <div className="bg-gray-800 p-2 border-b border-gray-700">
-      <button onClick={clearSession}>New Session</button>
-    </div>
-  );
-}
-```
-
-2. Import and use in `App.tsx`:
-
-```tsx
-import { Toolbar } from "./components/Toolbar";
-
-function App() {
-  return (
-    <div className="h-screen flex flex-col">
-      <Toolbar />
-      {/* ... rest of app */}
-    </div>
-  );
-}
-```
-
-### Adding New Message Part Types
-
-1. Update `MessagePart` interface in `src/stores/session.ts`:
-
-```typescript
-interface MessagePart {
-  type: "text" | "tool_use" | "tool_result" | "image";
-  text?: string;
-  name?: string;
-  result?: string;
-  imageUrl?: string;  // New field
-}
-```
-
-2. Add rendering logic in `Terminal.tsx`:
-
-```tsx
-{part.type === "image" && (
-  <img src={part.imageUrl} alt="Generated content" />
-)}
-```
-
-3. Add action to store:
-
-```typescript
-addImage: (url: string) =>
-  set((state) => ({
-    currentParts: [...state.currentParts, { type: "image", imageUrl: url }],
-  }))
-```
-
-4. Handle new event type in `App.tsx` SSE parser:
-
-```typescript
-else if (data.type === 'image.generated') {
-  addImage(data.url);
-}
-```
-
-### Customizing Colors
-
-Edit `src/styles/index.css`:
+Edit `@theme` in `src/styles/index.css`:
 
 ```css
 @theme {
-  --color-terminal-bg: #0d1117;        /* GitHub dark */
-  --color-terminal-user: #58a6ff;      /* GitHub blue */
-  --color-terminal-assistant: #3fb950; /* GitHub green */
+  --color-terminal-bg: #0d1117;
+  --color-terminal-user: #58a6ff;
 }
 ```
 
-### Adding Global Utilities
+### Add Utilities
 
-Add to `@layer utilities` in `src/styles/index.css`:
+Use `@layer utilities` in `src/styles/index.css`:
 
 ```css
 @layer utilities {
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+  .scrollbar-hide { scrollbar-width: none; }
 }
 ```
 
-## Build and Deployment
-
-### Production Build
+## Build
 
 ```bash
-bun run build
+bun run build   # TypeScript check + Vite build → dist/
+bun run preview # Preview production build
 ```
 
-This runs two steps:
-1. `tsc -b` - TypeScript build to check types
-2. `vite build` - Bundle application to `dist/` directory
+**Production Environment:**
 
-**Output:**
+For custom backend URLs, set `VITE_API_BASE` in `.env.production`:
 
-- `dist/index.html` - Entry HTML file
-- `dist/assets/` - JavaScript, CSS, and other assets with content hashes
-
-### Preview Production Build
-
-```bash
-bun run preview
-```
-
-Starts a local server serving the `dist/` directory.
-
-### Environment Variables
-
-The frontend hardcodes the backend URL to `http://localhost:3001`. For production deployment:
-
-1. Update `src/api/client.ts`:
-
-```typescript
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3001/api";
-```
-
-2. Create `.env.production`:
-
-```
+```env
 VITE_API_BASE=https://api.yourapp.com/api
 ```
 
-3. Vite will automatically use this during build.
+Then update `src/api/client.ts` to use `import.meta.env.VITE_API_BASE`.
 
-### Deployment Options
+## TypeScript
 
-**Static Hosting:**
-
-Deploy `dist/` to any static host (Vercel, Netlify, Cloudflare Pages):
+Run type checking:
 
 ```bash
-bun run build
-# Upload dist/ directory
+bun run typecheck  # tsc --noEmit
 ```
 
-**Docker:**
+**Configuration:** Uses TypeScript project references (`tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`)
 
-```dockerfile
-FROM oven/bun:1 AS builder
-WORKDIR /app
-COPY package.json bun.lockb ./
-RUN bun install
-COPY . .
-RUN bun run build
-
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-**Serve with Backend:**
-
-Configure the Hono backend to serve static files:
-
-```typescript
-// packages/backend/src/index.ts
-import { serveStatic } from 'hono/bun'
-
-app.use('/*', serveStatic({ root: './public' }))
-```
-
-Copy frontend build to backend's `public/` directory.
-
-## Type Safety
-
-### TypeScript Configuration
-
-The frontend uses TypeScript project references:
-
-- `tsconfig.json` - Root config with references
-- `tsconfig.app.json` - Application source code
-- `tsconfig.node.json` - Vite config files
-
-### Type Checking
-
-```bash
-bun run typecheck
-```
-
-This runs `tsc --noEmit` to check types without generating JavaScript files.
-
-### Message Type Definitions
-
-Types are defined inline in `src/stores/session.ts` and `src/api/client.ts`. For shared types between frontend and backend, consider:
-
-1. Create `packages/shared/` package
-2. Export types:
-
-```typescript
-// packages/shared/types.ts
-export interface MessagePart {
-  type: "text" | "tool_use" | "tool_result";
-  // ...
-}
-```
-
-3. Import in both packages:
-
-```typescript
-import type { MessagePart } from "@goop/shared";
-```
+**Types:** Defined inline in `src/stores/session.ts` and `src/api/client.ts`. For shared types, consider a `packages/shared/` package.
 
 ## Troubleshooting
 
-**Issue: Blank screen on load**
-- Check browser console for errors
-- Verify backend is running on port 3001
-- Check network tab for failed API requests
+**Blank screen:**
+- Check browser console and network tab
+- Verify backend on port 3001
 
-**Issue: Messages not streaming**
-- Verify `/api/sessions/:id/messages` returns `text/event-stream`
+**Streaming issues:**
+- Verify `text/event-stream` content type
 - Check backend SSE implementation
-- Inspect network tab for stream data
 
-**Issue: Session not persisting**
-- Check browser `localStorage` for `goop_session_id`
-- Verify `getSession` API call succeeds
-- Check browser console for restoration errors
+**Session not persisting:**
+- Check `localStorage` for `goop_session_id`
+- Verify backend session exists
 
-**Issue: Styles not applying**
-- Verify TailwindCSS plugin in `vite.config.ts`
-- Check `src/styles/index.css` is imported in `main.tsx`
-- Rebuild dev server: `bun run dev`
+**Styles broken:**
+- Verify `@tailwindcss/vite` plugin in `vite.config.ts`
+- Restart dev server
 
-## Future Enhancements
-
-- **Message History Virtualization**: Render only visible messages for long conversations
-- **Markdown Rendering**: Parse and display markdown in assistant responses
-- **Code Syntax Highlighting**: Highlight code blocks in messages
-- **File Upload**: Allow users to upload files for processing
-- **Session Deletion**: Add ability to delete sessions from SessionSwitcher dropdown
-- **Session Renaming**: Allow users to rename sessions in-place via inline editing
-- **Dark/Light Mode Toggle**: Support light theme
-- **Keyboard Shortcuts**: Cmd+K for quick actions, arrow keys for message history navigation
-- **Mobile Responsiveness**: Optimize for mobile devices
-- **Search Sessions**: Add search/filter functionality to SessionSwitcher for large numbers of sessions
-- **Additional Providers**: Google Gemini, local llama.cpp models, etc.
-
-## Related Documentation
+## References
 
 - [Root README](../../README.md) - Monorepo overview
-- [Backend README](../backend/README.md) - Backend package documentation
-- [CLAUDE.md](../../CLAUDE.md) - Development guidelines
-- [Implementation Plan](../../thoughts/shared/plans/2025-11-24-goop-foundation.md) - Phase 1 plan
+- [CLAUDE.md](../../CLAUDE.md) - Full architecture and development guidelines
+- [Backend README](../backend/README.md) - Backend documentation
 
 ## License
 
-MIT
+Apache License 2.0
