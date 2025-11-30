@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { WriteFileTool } from "./write";
 import { createTestDir, cleanupTestDir } from "../../test/utils/fs";
-import { readFile, stat } from "fs/promises";
+import { readFile } from "fs/promises";
 import { join } from "path";
 
 describe("WriteFileTool", () => {

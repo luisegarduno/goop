@@ -112,7 +112,10 @@ apiRoutes.get("/providers/:name/api-key", async (c) => {
       isConfigured: !!apiKey,
     });
   } catch (error: any) {
-    console.error(`[API] Failed to get API key for ${providerName}:`, error.message);
+    console.error(
+      `[API] Failed to get API key for ${providerName}:`,
+      error.message
+    );
     return c.json({ error: "Failed to retrieve API key" }, 500);
   }
 });
@@ -165,7 +168,9 @@ apiRoutes.post("/sessions", async (c) => {
     if (provider === "anthropic" && !providerInfo.models.includes(model)) {
       return c.json(
         {
-          error: `Invalid model for ${provider}. Allowed: ${providerInfo.models.join(", ")}`,
+          error: `Invalid model for ${provider}. Allowed: ${providerInfo.models.join(
+            ", "
+          )}`,
         },
         400
       );
@@ -245,7 +250,8 @@ apiRoutes.patch("/sessions/:id", async (c) => {
 
   // Validate API key if provided
   if (apiKey) {
-    const targetProvider = provider || (currentSession.provider as "anthropic" | "openai");
+    const targetProvider =
+      provider || (currentSession.provider as "anthropic" | "openai");
     try {
       const { validateProviderApiKey } = await import("../utils/validation");
       await validateProviderApiKey(targetProvider, apiKey);
@@ -259,7 +265,8 @@ apiRoutes.patch("/sessions/:id", async (c) => {
 
   // Validate model is valid for the provider (current or new)
   if (model !== undefined) {
-    const targetProvider = provider || (currentSession.provider as "anthropic" | "openai");
+    const targetProvider =
+      provider || (currentSession.provider as "anthropic" | "openai");
 
     try {
       const { getProviderInfo } = await import("../providers/index");
@@ -268,10 +275,15 @@ apiRoutes.patch("/sessions/:id", async (c) => {
       // For Anthropic, validate against static list
       // OpenAI models are not validated here because the model list is fetched dynamically
       // from the OpenAI API and may include models not in the static fallback list
-      if (targetProvider === "anthropic" && !providerInfo.models.includes(model)) {
+      if (
+        targetProvider === "anthropic" &&
+        !providerInfo.models.includes(model)
+      ) {
         return c.json(
           {
-            error: `Invalid model for ${targetProvider}. Allowed: ${providerInfo.models.join(", ")}`,
+            error: `Invalid model for ${targetProvider}. Allowed: ${providerInfo.models.join(
+              ", "
+            )}`,
           },
           400
         );
@@ -285,7 +297,9 @@ apiRoutes.patch("/sessions/:id", async (c) => {
   let providerChanged = false;
   if (provider !== undefined && currentSession.provider !== provider) {
     providerChanged = true;
-    console.log(`[API] Provider changed from ${currentSession.provider} to ${provider} - clearing message history`);
+    console.log(
+      `[API] Provider changed from ${currentSession.provider} to ${provider} - clearing message history`
+    );
   }
 
   // If provider changed, clear all messages for this session to avoid format incompatibility
@@ -393,7 +407,9 @@ apiRoutes.post("/sessions/:id/messages", async (c) => {
     console.error("[API] Failed to create provider:", error);
     return c.json(
       {
-        error: `Failed to initialize ${session.provider} provider: ${error.message}. Ensure ${session.provider.toUpperCase()}_API_KEY is set in .env`,
+        error: `Failed to initialize ${session.provider} provider: ${
+          error.message
+        }. Ensure ${session.provider.toUpperCase()}_API_KEY is set in .env`,
       },
       500
     );
@@ -416,19 +432,15 @@ apiRoutes.post("/sessions/:id/messages", async (c) => {
           content,
           workingDir
         )) {
-          // Check if stream was closed (e.g., due to client disconnect or timeout)
-          if (isClosed) {
-            console.log("[SSE] Stream closed, stopping message processing");
-            break;
-          }
-
           try {
             const message = formatSSE(event);
             controller.enqueue(encoder.encode(message));
           } catch (enqueueError: any) {
             // Controller is already closed (likely timeout or client disconnect)
             if (enqueueError.code === "ERR_INVALID_STATE") {
-              console.log("[SSE] Controller closed during enqueue, stopping stream");
+              console.log(
+                "[SSE] Controller closed during enqueue, stopping stream"
+              );
               isClosed = true;
               break;
             }
@@ -448,7 +460,9 @@ apiRoutes.post("/sessions/:id/messages", async (c) => {
             controller.enqueue(encoder.encode(errorEvent));
           } catch (enqueueError) {
             // Controller closed, can't send error event
-            console.log("[SSE] Could not send error event, controller already closed");
+            console.log(
+              "[SSE] Could not send error event, controller already closed"
+            );
           }
         }
       } finally {

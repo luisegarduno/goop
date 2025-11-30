@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { describe, test, expect, afterAll } from "bun:test";
 import { createSession, getMessages } from "../../../frontend/src/api/client";
 
 // These tests require a running backend server and PostgreSQL
@@ -11,7 +11,9 @@ const createdSessionIds: string[] = [];
 describe("Integration: Conversation Flow", () => {
   afterAll(async () => {
     // Clean up all test sessions
-    console.log(`[Test Cleanup] Deleting ${createdSessionIds.length} test sessions...`);
+    console.log(
+      `[Test Cleanup] Deleting ${createdSessionIds.length} test sessions...`
+    );
 
     for (const sessionId of createdSessionIds) {
       try {
@@ -22,10 +24,15 @@ describe("Integration: Conversation Flow", () => {
         if (response.ok) {
           console.log(`[Test Cleanup] Deleted session ${sessionId}`);
         } else {
-          console.warn(`[Test Cleanup] Failed to delete session ${sessionId}: ${response.status}`);
+          console.warn(
+            `[Test Cleanup] Failed to delete session ${sessionId}: ${response.status}`
+          );
         }
       } catch (error) {
-        console.warn(`[Test Cleanup] Error deleting session ${sessionId}:`, error);
+        console.warn(
+          `[Test Cleanup] Error deleting session ${sessionId}:`,
+          error
+        );
       }
     }
   });
