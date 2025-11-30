@@ -102,6 +102,13 @@ jobs:
           name: backend-coverage
           fail_ci_if_error: false
 
+      - name: Upload backend coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: ./packages/backend/coverage/lcov.info
+          retention-days: 7
+
       - name: Check backend coverage threshold
         run: |
           cd packages/backend
@@ -142,6 +149,14 @@ jobs:
           flags: frontend
           name: frontend-coverage
           fail_ci_if_error: false
+
+      - name: Upload frontend coverage artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: ./packages/frontend/coverage/lcov.info
+          retention-days: 7
 
   # Job 4: Integration Tests
   integration-tests:
@@ -213,9 +228,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download coverage artifacts
+      - name: Install LCOV
+        run: sudo apt-get update && sudo apt-get install -y lcov
+
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: ./packages/backend/coverage/
+
+      - name: Download frontend coverage
         uses: actions/download-artifact@v4
         continue-on-error: true
+        with:
+          name: frontend-coverage
+          path: ./packages/frontend/coverage/
 
       - name: Comment PR with coverage
         uses: zgosalvez/github-actions-report-lcov@v3
