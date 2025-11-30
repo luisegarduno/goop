@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, afterAll } from "bun:test";
 import {
   createSession,
   getSession,
@@ -8,8 +8,33 @@ import {
 } from "../../../frontend/src/api/client";
 
 const TEST_WORKING_DIR = "/tmp";
+const API_BASE = "http://localhost:3001/api";
+
+// Track created session IDs for cleanup
+const createdSessionIds: string[] = [];
 
 describe("Integration: Session Lifecycle", () => {
+  afterAll(async () => {
+    // Clean up all test sessions
+    console.log(`[Test Cleanup] Deleting ${createdSessionIds.length} test sessions...`);
+
+    for (const sessionId of createdSessionIds) {
+      try {
+        const response = await fetch(`${API_BASE}/sessions/${sessionId}`, {
+          method: "DELETE",
+        });
+
+        if (response.ok) {
+          console.log(`[Test Cleanup] Deleted session ${sessionId}`);
+        } else {
+          console.warn(`[Test Cleanup] Failed to delete session ${sessionId}: ${response.status}`);
+        }
+      } catch (error) {
+        console.warn(`[Test Cleanup] Error deleting session ${sessionId}:`, error);
+      }
+    }
+  });
+
   test("create, read, update session", async () => {
     // Create
     const created = await createSession(
@@ -21,6 +46,9 @@ describe("Integration: Session Lifecycle", () => {
 
     expect(created.id).toBeDefined();
     expect(created.title).toBe("Lifecycle Test");
+
+    // Track for cleanup
+    createdSessionIds.push(created.id);
 
     // Read
     const fetched = await getSession(created.id);
@@ -38,18 +66,21 @@ describe("Integration: Session Lifecycle", () => {
 
   test("list all sessions", async () => {
     // Create multiple sessions
-    await createSession(
+    const session1 = await createSession(
       TEST_WORKING_DIR,
       "Session 1",
       "anthropic",
       "claude-3-5-haiku-latest"
     );
-    await createSession(
+    const session2 = await createSession(
       TEST_WORKING_DIR,
       "Session 2",
       "anthropic",
       "claude-sonnet-4-0"
     );
+
+    // Track for cleanup
+    createdSessionIds.push(session1.id, session2.id);
 
     const sessions = await getAllSessions();
     expect(sessions.length).toBeGreaterThanOrEqual(2);
@@ -62,6 +93,9 @@ describe("Integration: Session Lifecycle", () => {
       "anthropic",
       "claude-3-5-haiku-latest"
     );
+
+    // Track for cleanup
+    createdSessionIds.push(session.id);
 
     // Send a message
     const response = await fetch(
