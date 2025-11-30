@@ -1,95 +1,121 @@
 # Code Style and Conventions
 
-## General Conventions
+## Language & Types
 
-### Language & Types
-- **TypeScript** throughout the entire codebase
-- Strict mode enabled (via tsconfig.json)
-- Use type inference where appropriate, explicit types for public APIs
-- Prefer interfaces for object shapes, types for unions/intersections
+- **TypeScript** throughout entire codebase with strict mode enabled
+- Type inference preferred, explicit types for public APIs
+- Interfaces for object shapes, types for unions/intersections
 
-### Naming Conventions
-- **Files**: kebab-case for regular files (e.g., `read-file.ts`), PascalCase for components (e.g., `Terminal.tsx`)
-- **Variables & Functions**: camelCase (e.g., `sessionId`, `createSession`)
-- **Classes & Types**: PascalCase (e.g., `ReadFileTool`, `ToolContext`)
-- **Constants**: UPPER_SNAKE_CASE for true constants (e.g., `DATABASE_URL`)
-- **Interfaces**: PascalCase, no "I" prefix (e.g., `Tool`, not `ITool`)
+## Naming Conventions
 
-### Code Organization
+- **Files**: kebab-case (`read-file.ts`), PascalCase for components (`Terminal.tsx`)
+- **Variables & Functions**: camelCase (`sessionId`, `createSession`)
+- **Classes & Types**: PascalCase (`ReadFileTool`, `ToolContext`)
+- **Constants**: UPPER_SNAKE_CASE (`DATABASE_URL`)
+- **Interfaces**: PascalCase, no "I" prefix (`Tool`, not `ITool`)
 
-#### Backend Patterns
-- **Provider Pattern**: Abstract `Provider` interface with concrete implementations (e.g., `AnthropicProvider`)
-- **Tool Pattern**: All tools implement `Tool<T>` interface with `name`, `description`, `schema`, and `execute()` method
-- **Zod Validation**: All input schemas defined with Zod for runtime validation and type inference
-- **Async Generators**: Use for streaming operations (e.g., `async *stream()`)
-- **Error Handling**: Throw descriptive errors, catch at boundaries, return error messages as strings for tools
+## Key Architectural Patterns
 
-#### Frontend Patterns
-- **Component Structure**: Functional components with TypeScript
-- **State Management**: Zustand store in `src/stores/` (no prop drilling)
-- **Custom Hooks**: Extract reusable logic (e.g., `useSSE` for Server-Sent Events)
-- **API Client**: Centralized in `src/api/client.ts` with typed functions
-
-### File Structure Patterns
-
-#### Backend (`packages/backend/src/`)
-```
-api/          # HTTP routes and SSE endpoints
-config/       # Configuration loading and schemas
-db/           # Database client, schema, migrations
-providers/    # AI provider implementations
-session/      # Session manager (conversation orchestration)
-streaming/    # SSE event types and formatting
-tools/        # Tool implementations
-index.ts      # Server entry point
+### 1. Environment Loading
+All packages load `.env` from monorepo root:
+```typescript
+config({ path: "../../.env" });
 ```
 
-#### Frontend (`packages/frontend/src/`)
+### 2. Provider System
+- Abstract `Provider` interface in `src/providers/base.ts`
+- Async generator yields `StreamEvent` (text deltas, tool_use, completion)
+- Per-session provider/model stored in database
+- Anthropic: Static model list
+- OpenAI: Dynamic model fetching from API
+
+### 3. Tool System
+- Tools implement `Tool<T>` with Zod schema, name, description, execute()
+- Receive `ToolContext` with `workingDir` from session
+- Security: Path validation prevents directory traversal
+- Register in `src/tools/index.ts`
+- Current tools: read_file, write_file, edit_file, grep, glob
+
+### 4. Session Manager Flow
+1. User message → session manager loads history from DB
+2. Provider streams response with tool calls
+3. Tools executed automatically, results fed back to provider
+4. All message parts persisted to DB
+5. Session timestamps updated
+
+### 5. Zod Validation
+- All input schemas defined with Zod for runtime validation
+- Automatic type inference from Zod schemas
+- JSON Schema conversion for AI tool definitions via `zod-to-json-schema`
+
+### 6. Database Migrations
+```bash
+# 1. Edit src/db/schema.ts
+# 2. Generate migration: bun run db:generate
+# 3. Review SQL in src/db/migrations/
+# 4. Apply: bun run db:migrate
 ```
-api/          # Backend API client
-components/   # React components
-hooks/        # Custom React hooks
-stores/       # Zustand state stores
-styles/       # Global styles and Tailwind
-App.tsx       # Root component
-main.tsx      # React entry point
+
+### 7. Frontend State Management
+- Zustand store in `src/stores/session.ts` (no prop drilling)
+- Persists to localStorage for page refresh
+- SSE hook (`useSSE.ts`) updates store with streaming deltas
+
+### 8. Server-Sent Events (SSE)
+- Event types: message.start, message.delta, tool.start, tool.result, message.done
+- Formatted in `src/streaming/index.ts`
+- Frontend connects via EventSource API
+- Content-Type: `text/event-stream`
+
+## Security Practices
+
+- **Path Validation**: All file tools validate paths stay within working directory
+- **Input Validation**: Zod schemas for all user/AI input
+- **Error Messages**: Don't expose sensitive information
+- **Environment Variables**: Never commit `.env` (use `.env.example`)
+- **API Keys**: Validated but NOT stored in database
+
+## Code Organization
+
+### Backend Structure
+```
+src/
+├── api/routes.ts          # REST & SSE endpoints
+├── config/                # Zod-validated config
+├── db/                    # Schema, migrations, client
+├── providers/             # AI provider implementations
+├── session/index.ts       # Conversation orchestration
+├── streaming/index.ts     # SSE event formatting
+├── tools/                 # Tool implementations
+└── index.ts               # Hono server entry
 ```
 
-### Import Conventions
-- Use explicit imports/exports (verbatimModuleSyntax enabled)
-- Group imports: external libraries, then internal modules
-- Use relative paths for local imports
+### Frontend Structure
+```
+src/
+├── api/client.ts          # Backend API calls
+├── components/            # React components
+├── hooks/useSSE.ts        # EventSource hook
+├── stores/session.ts      # Zustand store
+└── App.tsx                # Root component
+```
 
-### Comments & Documentation
-- Use JSDoc comments for public APIs and complex functions
-- Inline comments for non-obvious logic
-- Comprehensive README and CLAUDE.md for project documentation
+## Async/Await
 
-### Security Practices
-- **Path Validation**: Always validate file paths stay within working directory
-- **Input Validation**: Use Zod schemas for all user/AI input
-- **Error Messages**: Don't expose sensitive information in error messages
-- **Environment Variables**: Never commit `.env` files (use `.env.example`)
-
-### Async/Await
 - Prefer `async/await` over raw promises
-- Use `try/catch` for error handling in async functions
+- Use `try/catch` for error handling
 - Use async generators (`async *function`) for streaming
 
-### Database
-- **Drizzle ORM**: Define schemas in `src/db/schema.ts`
-- **Migrations**: Generate with `db:generate`, apply with `db:migrate`
-- **Relations**: Use Drizzle relations for joins
-- **UUIDs**: All primary keys are UUIDs with `gen_random_uuid()` default
-- **Cascade Deletes**: Configure in schema (e.g., deleting session deletes all messages)
+## React Conventions
 
-### React Conventions
-- Use functional components (no class components)
-- React 19 features (no legacy patterns)
-- TailwindCSS for styling (no CSS modules or styled-components)
-- Event handlers named with "handle" prefix (e.g., `handleSubmit`)
+- Functional components only (no classes)
+- React 19 features
+- TailwindCSS for styling
+- Event handlers: "handle" prefix (`handleSubmit`)
 
-### Testing
-- Bun's built-in test runner
-- Test files co-located with source code or in `__tests__` directories
-- Test coverage goal: 90%+ (future enhancement)
+## Database Conventions
+
+- Drizzle ORM schemas in `src/db/schema.ts`
+- UUIDs for all primary keys with `gen_random_uuid()` default
+- Cascade deletes configured in schema
+- Relations defined for efficient joins
