@@ -17,8 +17,10 @@ beforeEach(async () => {
   client = testDb.client;
 
   // Set dummy API keys for testing (these won't be used for real API calls)
-  process.env.ANTHROPIC_API_KEY = "sk-ant-api03-test1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-  process.env.OPENAI_API_KEY = "sk-proj-test1234567890abcdef1234567890abcdef1234567890abcdef";
+  process.env.ANTHROPIC_API_KEY =
+    "sk-ant-api03-test1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+  process.env.OPENAI_API_KEY =
+    "sk-proj-test1234567890abcdef1234567890abcdef1234567890abcdef";
 
   // Mock the database module to use our test database
   mock.module("../db/index", () => ({
