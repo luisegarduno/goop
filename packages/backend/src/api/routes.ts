@@ -436,10 +436,20 @@ apiRoutes.post("/sessions/:id/messages", async (c) => {
             controller.enqueue(encoder.encode(message));
           } catch (enqueueError: any) {
             // Controller is already closed (likely timeout or client disconnect)
-            console.log(
-              "[SSE] Controller closed during enqueue, stopping stream"
-            );
-            return; // Exit the start function - controller is already closed
+            // Check for common controller closure indicators
+            const isControllerClosed =
+              enqueueError instanceof TypeError ||
+              enqueueError.message?.includes("invalid state") ||
+              enqueueError.code === "ERR_INVALID_STATE";
+
+            if (isControllerClosed) {
+              console.log(
+                "[SSE] Controller closed during enqueue, stopping stream"
+              );
+              return; // Exit the start function - controller is already closed
+            }
+            // Re-throw unexpected errors
+            throw enqueueError;
           }
         }
       } catch (error: any) {
