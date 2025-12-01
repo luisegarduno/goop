@@ -34,4 +34,6 @@ console.log(`Server starting on port ${config.server.port}...`);
 export default {
   port: config.server.port,
   fetch: app.fetch,
+  // Default idleTimeout is 10 seconds which is too short for slow models like GPT-5-nano
+  idleTimeout: 210, // 3.5 minutes (210 seconds)
 };

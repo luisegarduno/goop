@@ -1,0 +1,104 @@
+/**
+ * Type for mock fetch responses
+ */
+export interface MockFetchResponse {
+  ok?: boolean;
+  status?: number;
+  data: unknown;
+  headers?: Record<string, string>;
+}
+
+/**
+ * Creates a mock fetch function for API testing
+ */
+export function createMockFetch(responses: Record<string, MockFetchResponse>) {
+  return async (url: string, options?: RequestInit) => {
+    const key = `${options?.method || "GET"} ${url}`;
+    const response = responses[key];
+
+    if (!response) {
+      throw new Error(`No mock response for ${key}`);
+    }
+
+    return {
+      ok: response.ok ?? true,
+      status: response.status ?? 200,
+      json: async () => response.data,
+      text: async () => JSON.stringify(response.data),
+      headers: new Headers(response.headers || {}),
+    } as Response;
+  };
+}
+
+/**
+ * Creates a mock ReadableStream for SSE testing
+ */
+export function createMockSSEStream(
+  events: Array<{ type: string; data: unknown }>
+) {
+  const encoder = new TextEncoder();
+  let index = 0;
+
+  return new ReadableStream({
+    async pull(controller) {
+      if (index >= events.length) {
+        controller.close();
+        return;
+      }
+
+      const event = events[index++];
+      const sseData = `data: ${JSON.stringify(event.data)}\n\n`;
+      controller.enqueue(encoder.encode(sseData));
+    },
+  });
+}
+
+/**
+ * Reset Zustand store to initial state
+ */
+export function resetStore(store: {
+  setState: (state: Record<string, unknown>) => void;
+}) {
+  store.setState({
+    sessionId: null,
+    workingDirectory: null,
+    provider: null,
+    model: null,
+    messages: [],
+    isStreaming: false,
+    currentText: "",
+    currentParts: [],
+  });
+}
+
+/**
+ * Mock localStorage for testing
+ */
+export class MockLocalStorage implements Storage {
+  private store: Map<string, string> = new Map();
+
+  get length(): number {
+    return this.store.size;
+  }
+
+  key(index: number): string | null {
+    const keys = Array.from(this.store.keys());
+    return keys[index] || null;
+  }
+
+  getItem(key: string): string | null {
+    return this.store.get(key) || null;
+  }
+
+  setItem(key: string, value: string): void {
+    this.store.set(key, value);
+  }
+
+  removeItem(key: string): void {
+    this.store.delete(key);
+  }
+
+  clear(): void {
+    this.store.clear();
+  }
+}

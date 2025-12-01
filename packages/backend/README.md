@@ -1,402 +1,150 @@
 # @goop/backend
 
-The backend API server for the goop AI Coding Agent, built with Bun, Hono, and PostgreSQL.
-
-## Overview
-
-This package provides a REST API with Server-Sent Events (SSE) streaming for real-time AI conversations. It integrates with the Anthropic Claude API, manages conversation state in PostgreSQL, and provides a pluggable tool system for extending AI capabilities.
+Backend API server for the goop AI Coding Agent. Provides REST API with Server-Sent Events (SSE) streaming, multi-provider AI integration (Claude & GPT), conversation persistence with PostgreSQL, and a type-safe tool system for file operations.
 
 **Key Features:**
 
-- RESTful API with Hono web framework
-- Real-time streaming via Server-Sent Events (SSE)
-- Anthropic Claude integration with tool use support
-- Conversation persistence with PostgreSQL + Drizzle ORM
-- Extensible provider system for multiple AI backends
-- Type-safe tool system with Zod validation
-- Session-based conversation management
+- Multi-provider support (Anthropic Claude, OpenAI GPT)
+- Real-time SSE streaming for AI responses
+- PostgreSQL + Drizzle ORM for type-safe persistence
+- Secure file tools (read, write, edit, grep, glob)
+- Session-based working directories
+- Zod schema validation throughout
 
 ## Tech Stack
 
-### Core Dependencies
+| Package                | Purpose                      |
+| ---------------------- | ---------------------------- |
+| **Bun**                | Runtime & package manager    |
+| **Hono**               | Web framework with CORS      |
+| **Drizzle ORM**        | Type-safe PostgreSQL ORM     |
+| **Drizzle Kit**        | Schema migrations            |
+| **postgres**           | PostgreSQL client            |
+| **Zod**                | Schema validation            |
+| **zod-to-json-schema** | Zod → JSON Schema conversion |
+| **@anthropic-ai/sdk**  | Claude API integration       |
+| **openai**             | OpenAI GPT integration       |
+| **fast-glob**          | File pattern matching        |
+| **dotenv**             | Environment config           |
 
-- **[Bun](https://bun.sh)** - Runtime and package manager
-- **[Hono](https://hono.dev/)** (^4.0.0) - Lightweight web framework
-- **[Drizzle ORM](https://orm.drizzle.team/)** (0.44.7) - Type-safe database ORM
-- **[Drizzle Kit](https://orm.drizzle.team/kit-docs/overview)** (0.31.7) - Database migration toolkit
-- **[Postgres](https://www.npmjs.com/package/postgres)** (^3.4.0) - PostgreSQL client for Node.js
-- **[Zod](https://zod.dev/)** (^3.25.76) - Schema validation and type inference
-- **[Anthropic SDK](https://www.npmjs.com/package/@anthropic-ai/sdk)** (^0.24.0) - Official Claude API client
-- **[zod-to-json-schema](https://www.npmjs.com/package/zod-to-json-schema)** (^3.22.0) - Convert Zod schemas to JSON Schema
-- **[dotenv](https://www.npmjs.com/package/dotenv)** (^17.2.3) - Environment variable loading
-
-## Project Structure
+## File Structure
 
 ```
-packages/backend/
-├── src/
-│   ├── index.ts              # Application entry point (Hono server setup)
-│   ├── config/               # Configuration management
-│   │   ├── index.ts          # Config loader with Zod validation
-│   │   └── schema.ts         # Zod schemas for message types
-│   ├── db/                   # Database layer
-│   │   ├── index.ts          # Drizzle client initialization
-│   │   ├── schema.ts         # Database schema (sessions, messages, message_parts)
-│   │   ├── migrate.ts        # Migration runner script
-│   │   └── migrations/       # Generated SQL migration files
-│   ├── api/                  # HTTP routes
-│   │   └── routes.ts         # REST endpoints and SSE streaming
-│   ├── providers/            # AI provider integrations
-│   │   ├── base.ts           # Provider interface definition
-│   │   ├── index.ts          # Provider registry and factory functions
-│   │   ├── anthropic.ts      # Anthropic Claude provider implementation
-│   │   └── openai.ts         # OpenAI GPT provider implementation
-│   ├── tools/                # Tool system
-│   │   ├── base.ts           # Tool interface definition
-│   │   ├── index.ts          # Tool registry
-│   │   ├── read.ts           # Read file tool implementation
-│   │   ├── write.ts          # Write file tool implementation
-│   │   ├── edit.ts           # Edit file tool (string replacement)
-│   │   ├── grep.ts           # Search files with regex patterns
-│   │   └── glob.ts           # Find files matching glob patterns
-│   ├── session/              # Session management
-│   │   └── index.ts          # SessionManager (orchestrates AI + tools)
-│   ├── streaming/            # SSE utilities
-│   │   └── index.ts          # SSE event types and formatting
-│   └── utils/                # Utility functions
-│       ├── security.ts       # Security utilities (path validation, etc.)
-│       └── validation.ts     # API key validation and provider checks
-├── drizzle.config.ts         # Drizzle Kit configuration
-├── package.json              # Dependencies and scripts
-└── tsconfig.json             # TypeScript configuration
+src/
+├── api/routes.ts          # REST & SSE endpoints
+├── config/
+│   ├── index.ts           # Zod-validated config loader
+│   └── schema.ts          # Message type schemas
+├── db/
+│   ├── schema.ts          # 3 tables: sessions, messages, message_parts
+│   ├── migrate.ts         # Migration runner
+│   └── migrations/        # Generated SQL files
+├── providers/
+│   ├── base.ts            # Provider interface
+│   ├── index.ts           # Provider registry
+│   ├── anthropic.ts       # Claude integration
+│   └── openai.ts          # GPT integration
+├── session/index.ts       # Conversation orchestration
+├── streaming/index.ts     # SSE event formatting
+├── tools/
+│   ├── base.ts            # Tool interface
+│   ├── index.ts           # Tool registry
+│   └── {read,write,edit,grep,glob}.ts
+├── utils/
+│   ├── security.ts        # Path validation
+│   └── validation.ts      # API key validation
+└── index.ts               # Hono server entry
 ```
 
-## Development Setup
+## Quick Start
 
-### Prerequisites
+**Prerequisites:** Bun >= 1.0, Docker, Anthropic API key
 
-- [Bun](https://bun.sh) >= 1.0
-- [Docker](https://docker.com) with Docker Compose (for PostgreSQL)
-- Anthropic API key
+1. **Install dependencies** (from monorepo root):
 
-### Installation
-
-1. **Install dependencies:**
    ```bash
-   cd packages/backend
    bun install
    ```
 
-2. **Set up environment variables:**
+2. **Configure `.env`** in project root:
 
-   Create a `.env` file in the project root (not in `packages/backend`):
-   ```bash
-   # Database
+   ```env
    DATABASE_URL=postgresql://goop:pass123@localhost:5432/db
-   POSTGRES_DB=db
-   POSTGRES_USER=goop
-   POSTGRES_PASSWORD=pass123
-
-   # AI Provider API Keys
-   ANTHROPIC_API_KEY=sk-ant-your-api-key-here
-   OPENAI_API_KEY=sk-your-openai-key-here
-
-   # Server
+   ANTHROPIC_API_KEY=sk-ant-...
+   OPENAI_API_KEY=sk-...  # Optional
    HONO_BACKEND_PORT=3001
    NODE_ENV=development
    ```
 
-3. **Start PostgreSQL:**
+3. **Start PostgreSQL**:
+
    ```bash
-   # From project root
    docker-compose up -d
    ```
 
-4. **Run database migrations:**
+4. **Run migrations** (from `packages/backend`):
+
    ```bash
+   cd packages/backend
    bun run db:migrate
    ```
 
-5. **Start development server:**
+5. **Start server**:
    ```bash
-   bun run dev
+   bun run dev  # http://localhost:3001
    ```
 
-   The server will start on `http://localhost:3001` with hot reload enabled.
-
-### Available Scripts
+## Common Commands
 
 ```bash
-# Development
-bun run dev          # Start server with hot reload (watches src/index.ts)
-
-# Database
-bun run db:generate  # Generate migration files from schema changes
-bun run db:migrate   # Apply migrations to database
-bun run db:studio    # Open Drizzle Studio (database GUI)
-
-# Build & Production
-bun run build        # Build for production
-bun run start        # Run production build
-
-# Quality
+bun run dev          # Dev server with hot reload
+bun run db:generate  # Generate migrations from schema
+bun run db:migrate   # Apply migrations
+bun run db:studio    # Database GUI
+bun run build        # Production build
 bun test             # Run tests
-bun run typecheck    # Type-check without emitting files
+bun run typecheck    # Type check
 ```
 
 ## API Endpoints
 
-### Providers
+**Base URL:** `http://localhost:3001`
 
-#### List Available Providers
-```http
-GET /api/providers
+### Core Endpoints
 
-Response:
-[
-  {
-    "name": "anthropic",
-    "displayName": "Anthropic Claude",
-    "requiresApiKey": true
-  },
-  {
-    "name": "openai",
-    "displayName": "OpenAI GPT",
-    "requiresApiKey": true
-  }
-]
-```
+| Method | Endpoint                       | Description                                            |
+| ------ | ------------------------------ | ------------------------------------------------------ |
+| GET    | `/health`                      | Health check                                           |
+| GET    | `/api/providers`               | List available AI providers                            |
+| GET    | `/api/providers/:name/models`  | Get model list for provider                            |
+| GET    | `/api/providers/:name/api-key` | Get masked API key from .env                           |
+| POST   | `/api/providers/validate`      | Validate API key for provider                          |
+| POST   | `/api/sessions`                | Create session with title, workingDir, provider, model |
+| GET    | `/api/sessions`                | List all sessions (ordered by updatedAt)               |
+| GET    | `/api/sessions/:id`            | Get session details                                    |
+| PATCH  | `/api/sessions/:id`            | Update session settings (provider, model, workingDir)  |
+| DELETE | `/api/sessions/:id`            | Delete session (cascades to messages)                  |
+| GET    | `/api/sessions/:id/messages`   | Get message history with parts                         |
+| POST   | `/api/sessions/:id/messages`   | Send message & stream response (SSE)                   |
 
-#### Get Provider Models
-```http
-GET /api/providers/:name/models
+### SSE Streaming Events
 
-Response:
-[
-  {
-    "id": "claude-3-5-haiku-latest",
-    "name": "Claude 3.5 Haiku"
-  },
-  // ... more models
-]
-```
+**POST** `/api/sessions/:id/messages` returns `text/event-stream` with:
 
-#### Get Provider API Key (Masked)
-```http
-GET /api/providers/:name/api-key
+- `message.start` - New message begins (messageId)
+- `message.delta` - Text chunk from AI (text)
+- `tool.start` - AI invokes tool (toolName, toolId, input)
+- `tool.result` - Tool execution result (toolId, result)
+- `message.done` - Message complete (messageId)
 
-Response:
-{
-  "apiKey": "sk-ant-...xyz",  // Masked version from .env
-  "isConfigured": true
-}
-```
-
-#### Validate API Key
-```http
-POST /api/providers/validate
-Content-Type: application/json
-
-{
-  "provider": "anthropic",
-  "apiKey": "sk-ant-your-key"
-}
-
-Response:
-{
-  "valid": true
-}
-```
-
-### Sessions
-
-#### Create Session
-```http
-POST /api/sessions
-Content-Type: application/json
-
-{
-  "title": "New Conversation",
-  "workingDirectory": "/path/to/project",
-  "provider": "anthropic",
-  "model": "claude-3-5-haiku-latest",
-  "apiKey": "sk-ant-optional-key"  // Optional, uses .env if not provided
-}
-
-Response:
-{
-  "id": "uuid",
-  "title": "New Conversation",
-  "workingDirectory": "/path/to/project",
-  "provider": "anthropic",
-  "model": "claude-3-5-haiku-latest",
-  "createdAt": "2025-11-25T...",
-  "updatedAt": "2025-11-25T..."
-}
-
-Error Response (400 - Invalid Directory):
-{
-  "error": "Working directory does not exist or is not accessible"
-}
-
-Error Response (400 - Invalid API Key):
-{
-  "error": "Invalid API key for provider"
-}
-```
-
-**Note:** The working directory is validated for read access. API keys are validated if provided. Sessions store provider and model preferences.
-
-#### Get Session
-```http
-GET /api/sessions/:id
-
-Response:
-{
-  "id": "uuid",
-  "title": "New Conversation",
-  "workingDirectory": "/path/to/project",
-  "provider": "anthropic",
-  "model": "claude-3-5-haiku-latest",
-  "createdAt": "2025-11-25T...",
-  "updatedAt": "2025-11-25T..."
-}
-```
-
-#### Update Session
-```http
-PATCH /api/sessions/:id
-Content-Type: application/json
-
-{
-  "provider": "openai",
-  "model": "gpt-4",
-  "workingDirectory": "/new/path"
-}
-
-Response:
-{
-  "id": "uuid",
-  "title": "New Conversation",
-  "workingDirectory": "/new/path",
-  "provider": "openai",
-  "model": "gpt-4",
-  "createdAt": "2025-11-25T...",
-  "updatedAt": "2025-11-25T..."
-}
-```
-
-#### List Sessions
-```http
-GET /api/sessions
-
-Response:
-[
-  {
-    "id": "uuid",
-    "title": "New Conversation",
-    "workingDirectory": "/path/to/project",
-    "provider": "anthropic",
-    "model": "claude-3-5-haiku-latest",
-    "createdAt": "2025-11-25T...",
-    "updatedAt": "2025-11-25T..."
-  }
-]
-```
-
-### Messages
-
-#### Get Session Messages
-```http
-GET /api/sessions/:id/messages
-
-Response:
-[
-  {
-    "id": "uuid",
-    "sessionId": "uuid",
-    "role": "user",
-    "createdAt": "2025-11-25T...",
-    "parts": [
-      {
-        "id": "uuid",
-        "messageId": "uuid",
-        "type": "text",
-        "content": { "text": "Hello!" },
-        "order": 0
-      }
-    ]
-  }
-]
-```
-
-#### Send Message (SSE Streaming)
-```http
-POST /api/sessions/:id/messages
-Content-Type: application/json
-
-{
-  "content": "Can you read the README.md file?"
-}
-
-Response:
-Content-Type: text/event-stream
-
-event: message.start
-data: {"type":"message.start","messageId":"uuid"}
-
-event: message.delta
-data: {"type":"message.delta","text":"Sure, I'll "}
-
-event: tool.start
-data: {"type":"tool.start","toolName":"read_file","toolId":"toolu_123","input":{"path":"README.md"}}
-
-event: tool.result
-data: {"type":"tool.result","toolId":"toolu_123","result":"# goop..."}
-
-event: message.start
-data: {"type":"message.start","messageId":"uuid"}
-
-event: message.delta
-data: {"type":"message.delta","text":"Here's the content..."}
-
-event: message.done
-data: {"type":"message.done","messageId":"uuid"}
-```
-
-**Note:** The `workingDirectory` is automatically fetched from the session record and used for tool execution context. Tool results trigger a new `message.start` event before the AI continues with its response.
-
-#### SSE Events Connection
-```http
-GET /api/sessions/:id/events
-
-Response:
-Content-Type: text/event-stream
-
-event: connected
-data: {"sessionId":"uuid"}
-
-:ping
-```
-
-### Health Check
-
-```http
-GET /health
-
-Response:
-{
-  "status": "ok"
-}
-```
+**Note:** `workingDirectory` is fetched from session. Tool execution triggers new `message.start` event before AI continues.
 
 ## Architecture
 
 ### Providers
 
-Providers are AI backend integrations that implement the `Provider` interface. They handle communication with AI APIs and normalize responses.
+AI backend integrations implementing `Provider` interface with async generator streaming:
 
-**Provider Interface:**
 ```typescript
 interface Provider {
   name: string;
@@ -408,25 +156,18 @@ interface Provider {
 ```
 
 **Current Providers:**
-- **AnthropicProvider** (`src/providers/anthropic.ts`) - Claude models with streaming and tool use support
-- **OpenAIProvider** (`src/providers/openai.ts`) - OpenAI GPT models with streaming and tool use support
 
-**Provider Registry:**
-The `src/providers/index.ts` file exports:
-- `AVAILABLE_PROVIDERS` - List of all available providers with metadata
-- `createProvider(name, apiKey)` - Factory function to instantiate providers
-- `getProviderInfo(name)` - Get metadata about a specific provider
+- `AnthropicProvider` - Claude models (static model list)
+- `OpenAIProvider` - GPT models (dynamic model fetching)
 
-**Stream Events:**
-- `{ type: "text", text: string }` - Text chunk from AI
-- `{ type: "tool_use", toolUse: { id, name, input } }` - AI wants to use a tool
-- `{ type: "done" }` - Stream complete
+**Registry:** `src/providers/index.ts` exports `AVAILABLE_PROVIDERS`, `createProvider()`, `getProviderInfo()`
+
+**Stream Events:** `text` (delta), `tool_use` (AI invocation), `done` (complete)
 
 ### Tools
 
-Tools are capabilities that the AI can invoke during conversations. Each tool has a name, description, input schema, and execution logic.
+Executable capabilities AI can invoke. Each tool has Zod schema, name, description, execute method:
 
-**Tool Interface:**
 ```typescript
 interface Tool<TInput = any> {
   name: string;
@@ -437,391 +178,157 @@ interface Tool<TInput = any> {
 ```
 
 **Current Tools:**
-- **ReadFileTool** (`src/tools/read.ts`) - Reads file contents with path security checks
-- **WriteFileTool** (`src/tools/write.ts`) - Writes content to files, creating or overwriting with automatic directory creation
-- **EditFileTool** (`src/tools/edit.ts`) - Edits files by replacing exact string matches (replaces all occurrences)
-- **GrepTool** (`src/tools/grep.ts`) - Searches for regex patterns across files with glob filtering and optional context lines
-- **GlobTool** (`src/tools/glob.ts`) - Finds files and directories matching glob patterns with common ignores (node_modules, .git)
 
-**Tool Context:**
-```typescript
-interface ToolContext {
-  workingDir: string;  // Base directory for file operations
-}
-```
+- `read_file` - Read file contents with path validation
+- `write_file` - Create/overwrite files with auto mkdir
+- `edit_file` - String replacement (replaces all occurrences)
+- `grep` - Regex pattern search with glob filtering & context lines
+- `glob` - Find files/directories matching patterns (ignores node_modules, .git)
+
+**Context:** `{ workingDir: string }` - session's base directory for operations
+
+**Security:** All file tools validate paths stay within `workingDir`
 
 ### Session Manager
 
-The `SessionManager` orchestrates the conversation flow between the AI provider, tools, and database.
-
-**Responsibilities:**
-- Store user messages in database
-- Load conversation history with complete content blocks (text + tool_use)
-- Fetch session's working directory for tool execution context
-- Stream AI responses via provider
-- Execute tools when requested by AI
-- Store assistant messages and tool results
-- Emit proper SSE events after tool execution
-- Update session timestamps
+Orchestrates conversation flow: user message → AI response → tool execution → database persistence.
 
 **Flow:**
-1. User sends message → stored in database
-2. Load conversation history from database (formatted with complete content blocks)
-3. Fetch session's working directory for tool context
-4. Stream request to AI provider with tools
-5. On text chunks → yield SSE events and store in database
-6. On tool use → execute tool, store result, emit message.start, continue conversation
-7. Update session timestamp when complete
 
-**Recent Improvements:**
-- Multi-provider support (Anthropic Claude and OpenAI GPT)
-- Per-session provider and model configuration
-- API key validation endpoints
-- Provider metadata and model listing APIs
-- Message history includes complete content blocks combining text and tool_use parts
-- Working directory is retrieved from session record instead of request body
-- Tool execution triggers a new `message.start` event before AI continues
-- Session settings can be updated via PATCH endpoint
-- Security utilities for path validation and API key checking
+1. Store user message in DB
+2. Load conversation history (text + tool_use blocks)
+3. Fetch session's workingDir for tool context
+4. Stream AI response via provider
+5. On text: yield SSE events, store in DB
+6. On tool_use: execute tool, store result, emit `message.start`, continue
+7. Update session timestamp
 
-### SSE Streaming
+**Key Features:**
 
-Server-Sent Events enable real-time streaming of AI responses to the frontend.
-
-**Event Types:**
-```typescript
-type SSEEvent =
-  | { type: "message.start"; messageId: string }
-  | { type: "message.delta"; text: string }
-  | { type: "tool.start"; toolName: string; toolId: string; input: any }
-  | { type: "tool.result"; toolId: string; result: string }
-  | { type: "message.done"; messageId: string };
-```
-
-**Format:**
-```
-event: message.delta
-data: {"type":"message.delta","text":"Hello"}
-
-```
+- Per-session provider/model configuration
+- Working directory retrieved from session (not request body)
+- Tool execution triggers new `message.start` event
+- Complete content blocks in history (text + tool_use combined)
 
 ## Configuration
 
-Configuration is managed via environment variables and validated with Zod.
+Zod-validated config from environment variables in root `.env`:
 
-**Config Schema:**
 ```typescript
 {
-  database: {
-    url: string  // PostgreSQL connection string
-  },
-  anthropic: {
-    apiKey?: string  // Anthropic API key (optional)
-  },
-  openai: {
-    apiKey?: string  // OpenAI API key (optional)
-  },
-  server: {
-    port: number         // HTTP server port (default: 3001)
-    env: "development" | "production" | "test"
-  }
+  database: { url: string },  // Required
+  anthropic: { apiKey?: string },  // Optional
+  openai: { apiKey?: string },  // Optional
+  server: { port: number, env: "development" | "production" | "test" }
 }
-```
-
-**Loading:**
-```typescript
-import { loadConfig } from "./config";
-
-const config = loadConfig();  // Throws if validation fails
 ```
 
 **Environment Variables:**
-- `DATABASE_URL` - PostgreSQL connection string (required)
-- `ANTHROPIC_API_KEY` - Anthropic API key (optional, can be provided per-session)
-- `OPENAI_API_KEY` - OpenAI API key (optional, can be provided per-session)
+
+- `DATABASE_URL` - PostgreSQL connection (required)
+- `ANTHROPIC_API_KEY` - Claude API key (optional, can be per-session)
+- `OPENAI_API_KEY` - GPT API key (optional, can be per-session)
 - `HONO_BACKEND_PORT` - Server port (default: 3001)
-- `NODE_ENV` - Environment mode (default: development)
+- `NODE_ENV` - Environment (default: development)
 
-## Database
+## Database Schema
 
-### Schema
+**PostgreSQL 17** with 3 tables, UUID PKs, cascade deletes:
 
-The database uses three tables with UUID primary keys and cascade delete relationships:
+**sessions**
 
-#### sessions
-- `id` (uuid, primary key)
-- `title` (text)
-- `working_directory` (text, not null) - Base directory for tool operations
-- `provider` (text, not null, default: 'anthropic') - AI provider name
-- `model` (text, not null, default: 'claude-3-5-haiku-latest') - Model identifier
-- `created_at` (timestamp)
-- `updated_at` (timestamp)
+- `id`, `title`, `working_directory`, `provider`, `model`, `created_at`, `updated_at`
 
-#### messages
-- `id` (uuid, primary key)
-- `session_id` (uuid, foreign key → sessions.id, cascade delete)
-- `role` (text) - 'user' | 'assistant'
-- `created_at` (timestamp)
+**messages**
 
-#### message_parts
-- `id` (uuid, primary key)
-- `message_id` (uuid, foreign key → messages.id, cascade delete)
-- `type` (text) - 'text' | 'tool_use' | 'tool_result'
-- `content` (jsonb) - Flexible JSON content
-- `order` (integer) - Order of parts within message
+- `id`, `session_id` (FK), `role` (user|assistant), `created_at`
 
-### Migrations
+**message_parts**
 
-**Generate migration from schema changes:**
+- `id`, `message_id` (FK), `type` (text|tool_use|tool_result), `content` (jsonb), `order`
+
+**Migrations:**
+
 ```bash
-bun run db:generate
+bun run db:generate  # Generate from schema changes
+bun run db:migrate   # Apply to database
+bun run db:studio    # Open Drizzle Studio GUI
 ```
 
-This creates a new SQL migration file in `src/db/migrations/`.
+**Relations:** Drizzle ORM provides type-safe queries with `with: { messages: { with: { parts: true } } }`
 
-**Apply migrations:**
-```bash
-bun run db:migrate
-```
+## Extending
 
-**Database GUI:**
-```bash
-bun run db:studio
-```
+### Adding a Tool
 
-Opens Drizzle Studio at `https://local.drizzle.studio`.
+1. Create `src/tools/{name}.ts` with Zod schema and `Tool` implementation:
 
-**Migration History:**
-- `0000_unique_post.sql` - Initial schema (sessions, messages, message_parts)
-- `0001_premium_vapor.sql` - Added `working_directory` column to sessions table with default value for existing rows
-- `0002_clean_guardian.sql` - Added `provider` and `model` columns to sessions table for multi-provider support
+   ```typescript
+   export const MyToolInputSchema = z.object({
+     param: z.string().describe("Parameter description"),
+   });
 
-### Relations
+   export class MyTool implements Tool<z.infer<typeof MyToolInputSchema>> {
+     name = "my_tool";
+     description = "What this tool does";
+     schema = MyToolInputSchema;
 
-Drizzle ORM provides type-safe relations for querying:
+     async execute(
+       input: z.infer<typeof MyToolInputSchema>,
+       context: ToolContext
+     ) {
+       // Validate paths with context.workingDir
+       return "Result string";
+     }
+   }
+   ```
 
-```typescript
-// Query session with all messages and parts
-const session = await db.query.sessions.findFirst({
-  where: eq(sessions.id, sessionId),
-  with: {
-    messages: {
-      with: {
-        parts: true
-      }
-    }
-  }
-});
-```
+2. Register in `src/tools/index.ts`:
 
-## Extending the Backend
+   ```typescript
+   export const tools: Tool[] = [..., new MyTool()];
+   ```
 
-### Adding a New Tool
+3. Tools auto-available to all providers
 
-1. **Create tool file** in `src/tools/`:
+### Adding a Provider
 
-```typescript
-// src/tools/write.ts
-import { z } from "zod";
-import { Tool, ToolContext } from "./base";
-import { writeFile } from "fs/promises";
+1. Create `src/providers/{name}.ts` implementing `Provider` interface
+2. Add API key to config schema in `src/config/index.ts`
+3. Register in `src/providers/index.ts` → `AVAILABLE_PROVIDERS` array
+4. Add to `createProvider()` factory function
 
-export const WriteFileInputSchema = z.object({
-  path: z.string().describe("File path to write"),
-  content: z.string().describe("Content to write"),
-});
-
-export class WriteFileTool implements Tool<z.infer<typeof WriteFileInputSchema>> {
-  name = "write_file";
-  description = "Write content to a file";
-  schema = WriteFileInputSchema;
-
-  async execute(input: z.infer<typeof WriteFileInputSchema>, context: ToolContext) {
-    // Implementation...
-    await writeFile(/* ... */);
-    return "File written successfully";
-  }
-}
-```
-
-2. **Register tool** in `src/tools/index.ts`:
-
-```typescript
-import { WriteFileTool } from "./write";
-
-export const tools: Tool[] = [
-  new ReadFileTool(),
-  new WriteFileTool(),  // Add here
-];
-```
-
-3. **Test the tool:**
-```bash
-bun run dev
-# Ask AI to use the tool: "Write 'Hello' to test.txt"
-```
-
-### Adding a New Provider
-
-1. **Create provider file** in `src/providers/`:
-
-```typescript
-// src/providers/openai.ts
-import OpenAI from "openai";
-import { Provider, ProviderMessage, StreamEvent, ToolDefinition } from "./base";
-
-export class OpenAIProvider implements Provider {
-  name = "openai";
-  private client: OpenAI;
-
-  constructor(apiKey: string) {
-    this.client = new OpenAI({ apiKey });
-  }
-
-  async *stream(
-    messages: ProviderMessage[],
-    tools: ToolDefinition[]
-  ): AsyncGenerator<StreamEvent> {
-    // Implementation...
-  }
-}
-```
-
-2. **Add config** in `src/config/index.ts`:
-
-```typescript
-const configSchema = z.object({
-  // ... existing fields
-  openai: z.object({
-    apiKey: z.string().optional(),
-  }),
-});
-```
-
-3. **Update SessionManager** to support provider selection:
-
-```typescript
-constructor(providerName: string) {
-  if (providerName === "openai") {
-    this.provider = new OpenAIProvider(config.openai.apiKey);
-  } else {
-    this.provider = new AnthropicProvider();
-  }
-}
-```
+See `src/providers/anthropic.ts` and `src/providers/openai.ts` for examples
 
 ## Testing
 
-### Unit Tests
-
-Create tests in `src/**/*.test.ts`:
+**Unit Tests:** Create `src/**/*.test.ts` with Bun test runner:
 
 ```typescript
-// src/tools/read.test.ts
 import { describe, test, expect } from "bun:test";
-import { ReadFileTool } from "./read";
-
-describe("ReadFileTool", () => {
-  test("reads file content", async () => {
-    const tool = new ReadFileTool();
-    const result = await tool.execute(
-      { path: "package.json" },
-      { workingDir: process.cwd() }
-    );
-    expect(result).toContain("@goop/backend");
-  });
-});
 ```
 
-Run tests:
-```bash
-bun test
-```
+**Run:** `bun test`
 
-### Integration Testing
-
-Test end-to-end flows with curl:
-
-```bash
-# Create session with working directory
-SESSION=$(curl -X POST http://localhost:3001/api/sessions \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Test Session","workingDirectory":"'"$(pwd)"'"}' | jq -r '.id')
-
-# Send message (workingDirectory is fetched from session)
-curl -X POST http://localhost:3001/api/sessions/$SESSION/messages \
-  -H "Content-Type: application/json" \
-  -d '{"content":"Hello!"}'
-
-# Get messages
-curl http://localhost:3001/api/sessions/$SESSION/messages
-```
+**Integration:** Use `curl` to test end-to-end flows (create session → send message → get messages)
 
 ## Troubleshooting
 
-### Database Connection Issues
+| Issue                          | Solution                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------ |
+| Database connection failed     | Check `docker-compose ps`, verify `DATABASE_URL`, test with `psql`       |
+| Migration errors               | Check `drizzle_migrations` table, remove duplicates, re-run `db:migrate` |
+| 401 Unauthorized / Invalid key | Verify API keys in `.env`, check provider console, restart server        |
+| Hot reload not working         | Use `bun run dev` (not direct `bun src/index.ts`)                        |
+| Tool execution errors          | Verify `workingDir` is accessible, check backend logs                    |
 
-**Problem:** `Error: Connection failed`
+**API Key Validation:** Use `POST /api/providers/validate` to test keys
 
-**Solution:**
-1. Check PostgreSQL is running: `docker-compose ps`
-2. Verify DATABASE_URL in `.env`
-3. Test connection: `psql $DATABASE_URL`
+**Provider Consoles:**
 
-### Migration Errors
+- Anthropic: https://console.anthropic.com
+- OpenAI: https://platform.openai.com
 
-**Problem:** `Migration failed: relation already exists`
+---
 
-**Solution:**
-1. Check migration history: `psql $DATABASE_URL -c "SELECT * FROM drizzle_migrations"`
-2. Delete duplicate migration files
-3. Re-run: `bun run db:migrate`
-
-### AI Provider API Errors
-
-**Problem:** `401 Unauthorized` or `Invalid API key`
-
-**Solution:**
-1. Verify `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in `.env`
-2. Check API key is valid at provider console:
-   - Anthropic: https://console.anthropic.com
-   - OpenAI: https://platform.openai.com
-3. Restart dev server after updating `.env`
-4. Use `/api/providers/validate` endpoint to test API keys
-
-### Hot Reload Not Working
-
-**Problem:** Code changes don't trigger restart
-
-**Solution:**
-1. Use `bun run dev` (not `bun src/index.ts`)
-2. Check `package.json` dev script: `"dev": "bun --watch src/index.ts"`
-3. Restart manually if needed
-
-## Performance Considerations
-
-### Current (Phase 1)
-- No optimization needed for MVP
-- Focus on correctness and functionality
-
-### Future Optimizations
-- **Context window management** - Prune old messages when approaching token limits
-- **Database indexing** - Add indexes on `session_id`, `created_at`
-- **Tool result caching** - Cache repeated file reads
-- **Connection pooling** - Configure PostgreSQL connection pool
-- **Streaming batching** - Batch small text deltas to reduce SSE overhead
-
-## Next Steps
-
-This backend has completed the core foundation including multi-provider support and a comprehensive tool set. Future phases will add:
-
-- **Additional providers:** Google Gemini, Cohere, llama.cpp (local models)
-- **More tools:** bash (shell command execution)
-- **Approval system:** User confirmation for dangerous operations (write, edit, bash)
-- **Mode enforcement:** Ask/Plan/Build mode restrictions
-- **Comprehensive testing:** 90%+ coverage with unit and integration tests
-- **Performance optimizations:** Context pruning, connection pooling, caching
-
-## License
-
-MIT
+**See [CLAUDE.md](../../CLAUDE.md) for detailed architecture, patterns, and project status.**

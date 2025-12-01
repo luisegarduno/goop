@@ -57,6 +57,23 @@ export async function updateSession(
   return res.json();
 }
 
+export async function deleteSession(sessionId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+
+  if (!res.ok) {
+    let errorMessage = `Failed to delete session: ${res.status}`;
+    try {
+      const error = await res.json();
+      errorMessage = error.error || errorMessage;
+    } catch {
+      // If not JSON, use the status code message
+    }
+    throw new Error(errorMessage);
+  }
+}
+
 export async function getSession(id: string) {
   const res = await fetch(`${API_BASE}/sessions/${id}`);
   return res.json();
@@ -91,7 +108,7 @@ interface BackendMessagePart {
   id: string;
   messageId: string;
   type: string;
-  content: any;
+  content: Record<string, unknown>;
   order: number;
 }
 
@@ -111,11 +128,13 @@ export interface FrontendMessage {
     text?: string;
     name?: string;
     result?: string;
-    input?: any;
+    input?: Record<string, unknown>;
   }>;
 }
 
-export async function getMessages(sessionId: string): Promise<FrontendMessage[]> {
+export async function getMessages(
+  sessionId: string
+): Promise<FrontendMessage[]> {
   const res = await fetch(`${API_BASE}/sessions/${sessionId}/messages`);
   const backendMessages: BackendMessage[] = await res.json();
 
@@ -127,18 +146,18 @@ export async function getMessages(sessionId: string): Promise<FrontendMessage[]>
       if (part.type === "text") {
         return {
           type: "text" as const,
-          text: part.content.text,
+          text: part.content.text as string,
         };
       } else if (part.type === "tool_use") {
         return {
           type: "tool_use" as const,
-          name: part.content.name,
-          input: part.content.input,
+          name: part.content.name as string,
+          input: part.content.input as Record<string, unknown>,
         };
       } else if (part.type === "tool_result") {
         return {
           type: "tool_result" as const,
-          result: part.content.content,
+          result: part.content.content as string,
         };
       }
       // Fallback

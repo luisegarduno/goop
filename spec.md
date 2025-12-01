@@ -7,17 +7,17 @@
 **Core Requirements**:
 
 - **Runtime**: Bun + TypeScript
-- **Frontend**: React + TailwindCSS (terminal-like web UI on localhost)
+- **Frontend**: React 19 + TailwindCSS 4 (terminal-like web UI on localhost)
 - **Backend**: Lightweight HTTP server (Hono)
-- **AI Providers**: Anthropic, OpenAI, Google, llama.cpp local models
-- **Modes**: Ask (read-only Q&A), Plan (read-only analysis), Build (development)
-- **Approval**: Y/N prompts for each tool call
-- **File Specification**: @ symbol for files/folders
-- **Streaming**: Real-time tool call updates to UI
-- **Database**: PostgreSQL + node-postgres + Drizzle ORM
+- **AI Providers**: Anthropic Claude, OpenAI GPT (implemented); Google Gemini, llama.cpp (planned)
+- **Tools**: Read, write, edit, grep, glob (implemented); bash (planned)
+- **Modes**: Ask/Plan/Build mode system (planned)
+- **Approval**: Y/N prompts for tool calls (planned)
+- **Streaming**: Real-time SSE streaming to UI
+- **Database**: PostgreSQL 17 + postgres + Drizzle ORM
 - **Schema**: Zod validation everywhere
-- **Testing**: 90%+ code coverage with Vitest
-- **CI/CD**: GitHub Actions
+- **Testing**: Vitest framework (comprehensive coverage planned)
+- **CI/CD**: GitHub Actions (planned)
 - **Cross-platform**: Windows, macOS, Linux
 
 ### Architecture Overview
@@ -60,12 +60,10 @@
                   │ Drizzle ORM
                   ▼
 ┌─────────────────────────────────────────┐
-│     PostgreSQL Database                 │
-│  - sessions                             │
+│     PostgreSQL 17 Database              │
+│  - sessions (with provider, model)      │
 │  - messages                             │
 │  - message_parts                        │
-│  - tool_calls                           │
-│  - approvals                            │
 └─────────────────────────────────────────┘
 ```
 
@@ -78,47 +76,35 @@ ai-coding-agent/
 │   │   ├── src/
 │   │   │   ├── index.ts                 # Entry point, Hono server
 │   │   │   ├── config/
-│   │   │   │   ├── index.ts             # Load .env, config files
-│   │   │   │   └── schema.ts            # Zod config schemas
+│   │   │   │   ├── index.ts             # Zod-validated config loader ✅
+│   │   │   │   └── schema.ts            # Message type schemas ✅
 │   │   │   ├── db/
-│   │   │   │   ├── index.ts             # Drizzle client
-│   │   │   │   ├── schema.ts            # Drizzle schema definitions
-│   │   │   │   └── migrations/          # SQL migrations
+│   │   │   │   ├── index.ts             # Drizzle client ✅
+│   │   │   │   ├── schema.ts            # Drizzle schema (3 tables) ✅
+│   │   │   │   ├── migrate.ts           # Migration runner ✅
+│   │   │   │   └── migrations/          # SQL migrations ✅
 │   │   │   ├── providers/
 │   │   │   │   ├── index.ts             # Provider registry
 │   │   │   │   ├── base.ts              # Abstract provider interface
-│   │   │   │   ├── anthropic.ts         # Claude integration
-│   │   │   │   ├── openai.ts            # GPT integration
-│   │   │   │   ├── google.ts            # Gemini integration
-│   │   │   │   └── llamacpp.ts          # Local model integration
+│   │   │   │   ├── anthropic.ts         # Claude integration ✅
+│   │   │   │   └── openai.ts            # GPT integration ✅
 │   │   │   ├── tools/
-│   │   │   │   ├── index.ts             # Tool registry
-│   │   │   │   ├── base.ts              # Tool interface
-│   │   │   │   ├── read.ts              # File reading (Ask/Plan/Build)
-│   │   │   │   ├── write.ts             # File writing (Build only)
-│   │   │   │   ├── edit.ts              # File editing (Build only)
-│   │   │   │   ├── bash.ts              # Shell commands (Build only)
-│   │   │   │   ├── grep.ts              # Code search (all modes)
-│   │   │   │   └── glob.ts              # File listing (all modes)
+│   │   │   │   ├── index.ts             # Tool registry ✅
+│   │   │   │   ├── base.ts              # Tool interface ✅
+│   │   │   │   ├── read.ts              # File reading ✅
+│   │   │   │   ├── write.ts             # File writing ✅
+│   │   │   │   ├── edit.ts              # File editing ✅
+│   │   │   │   ├── grep.ts              # Code search (regex) ✅
+│   │   │   │   └── glob.ts              # File pattern matching ✅
 │   │   │   ├── session/
-│   │   │   │   ├── index.ts             # Session manager
-│   │   │   │   ├── modes.ts             # Ask/Plan/Build mode logic
-│   │   │   │   └── context.ts           # Context window management
-│   │   │   ├── approval/
-│   │   │   │   ├── index.ts             # Approval manager
-│   │   │   │   └── strategies.ts        # Approval strategies (Y/N)
+│   │   │   │   └── index.ts             # Session manager & conversation orchestration ✅
 │   │   │   ├── streaming/
-│   │   │   │   ├── index.ts             # SSE event emitter
-│   │   │   │   └── types.ts             # Event type definitions
+│   │   │   │   └── index.ts             # SSE event formatting ✅
 │   │   │   ├── api/
-│   │   │   │   ├── routes.ts            # API route definitions
-│   │   │   │   ├── sessions.ts          # Session endpoints
-│   │   │   │   ├── messages.ts          # Message endpoints
-│   │   │   │   └── events.ts            # SSE endpoint
+│   │   │   │   └── routes.ts            # REST & SSE endpoints ✅
 │   │   │   └── utils/
-│   │   │       ├── errors.ts            # Error handling
-│   │   │       ├── logger.ts            # Logging utility
-│   │   │       └── validation.ts        # Zod validation helpers
+│   │   │       ├── security.ts          # Path validation ✅
+│   │   │       └── validation.ts        # API key validation ✅
 │   │   ├── package.json
 │   │   ├── tsconfig.json
 │   │   └── vitest.config.ts
@@ -128,21 +114,17 @@ ai-coding-agent/
 │       │   ├── main.tsx                 # Entry point
 │       │   ├── App.tsx                  # Root component
 │       │   ├── components/
-│       │   │   ├── Terminal.tsx         # Terminal-like UI
-│       │   │   ├── MessageList.tsx      # Chat history
-│       │   │   ├── InputBox.tsx         # User input with @ support
-│       │   │   ├── ApprovalPrompt.tsx   # Y/N approval UI
-│       │   │   ├── StreamingIndicator.tsx  # Loading states
-│       │   │   └── ModeSelector.tsx     # Ask/Plan/Build toggle
+│       │   │   ├── Terminal.tsx         # Message display with auto-scroll ✅
+│       │   │   ├── InputBox.tsx         # User input with send button ✅
+│       │   │   ├── SessionSwitcher.tsx  # Session dropdown ✅
+│       │   │   ├── SetupModal.tsx       # Session creation modal ✅
+│       │   │   └── SettingsModal.tsx    # Provider/model settings ✅
 │       │   ├── hooks/
-│       │   │   ├── useSession.ts        # Session state management
-│       │   │   ├── useSSE.ts            # SSE connection hook
-│       │   │   └── useFileSelector.ts   # @ symbol file picker
+│       │   │   └── useSSE.ts            # SSE connection hook ✅
 │       │   ├── stores/
-│       │   │   ├── session.ts           # Zustand store for session
-│       │   │   └── ui.ts                # UI state store
+│       │   │   └── session.ts           # Zustand store ✅
 │       │   ├── api/
-│       │   │   └── client.ts            # Backend API client
+│       │   │   └── client.ts            # Backend API client ✅
 │       │   └── styles/
 │       │       └── index.css            # TailwindCSS config
 │       ├── index.html
@@ -177,17 +159,15 @@ ai-coding-agent/
 
 **2. Database Module** (`backend/src/db/`)
 
-- Drizzle ORM setup with node-postgres
-- Schema definitions:
+- Drizzle ORM setup with postgres client
+- Schema definitions (3 tables with UUID PKs, cascade deletes):
   ```typescript
-  sessions: id, title, mode, created_at, updated_at;
-  messages: id, session_id, role, content, created_at;
+  sessions: id, title, working_directory, provider, model, created_at, updated_at;
+  messages: id, session_id, role, created_at;
   message_parts: id, message_id, type, content, order;
-  tool_calls: id, message_id, tool_name, input, output, status;
-  approvals: id, tool_call_id, approved, feedback, created_at;
   ```
-- Migration management
-- Connection pooling
+- Migration management with Drizzle Kit
+- Connection via postgres client
 
 **3. Providers Module** (`backend/src/providers/`)
 
@@ -195,112 +175,100 @@ ai-coding-agent/
   ```typescript
   interface Provider {
     name: string;
-    stream(messages: Message[], tools: Tool[]): AsyncGenerator<Event>;
-    listModels(): Promise<Model[]>;
+    stream(messages: ProviderMessage[], tools: ToolDefinition[]): AsyncGenerator<StreamEvent>;
   }
   ```
-- Anthropic: Messages API with streaming
-- OpenAI: Chat completions with streaming
-- Google: Gemini Pro API
-- llama.cpp: HTTP API adapter
+- **Implemented**: Anthropic Claude (static model list), OpenAI GPT (dynamic model fetching)
+- **Planned**: Google Gemini, llama.cpp local models
+- Streaming events: text deltas, tool_use, completion
+- Per-session provider/model stored in database
 
 **4. Tools Module** (`backend/src/tools/`)
 
 - Abstract `Tool` interface:
   ```typescript
-  interface Tool {
+  interface Tool<T> {
     name: string;
     description: string;
-    schema: ZodSchema;
-    modes: Mode[]; // Which modes allow this tool
-    execute(input: z.infer<Schema>, context: Context): Promise<Result>;
+    schema: ZodSchema<T>;
+    execute(input: T, context: ToolContext): Promise<string>;
   }
   ```
-- File tools: read (all), write/edit (Build only)
-- Shell: bash (Build only, requires approval)
-- Search: grep (all), glob (all)
-- Mode enforcement at tool registry level
+- **Implemented**: read_file, write_file, edit_file, grep, glob
+- **Planned**: bash (shell execution)
+- Security: Path validation against working directory
+- Tools receive `ToolContext` with `workingDir` from session
 
 **5. Session Module** (`backend/src/session/`)
 
 - Create/resume sessions
-- Message history management
-- Mode switching (Ask/Plan/Build)
-- Context window pruning strategies
-- @ symbol file resolution
+- Conversation orchestration (user message → AI → tool execution → response)
+- Message history loading from database
+- Streaming with SSE events
+- Persistence of all message parts
+- Working directory enforcement for tool execution
 
-**6. Approval Module** (`backend/src/approval/`)
+**6. Streaming Module** (`backend/src/streaming/`)
 
-- Intercept tool calls requiring approval
-- Create pending approval records in DB
-- Stream approval requests to UI via SSE
-- Wait for Y/N response from frontend
-- Execute or cancel based on response
-
-**7. Streaming Module** (`backend/src/streaming/`)
-
-- SSE event emitter for real-time updates
+- SSE event formatting for real-time updates
 - Event types:
   ```typescript
-  "session.created", "session.updated";
-  "message.started", "message.delta", "message.completed";
-  "tool.started", "tool.progress", "tool.completed";
-  "approval.requested", "approval.responded";
+  "message.start", "message.delta", "message.done";
+  "tool.start", "tool.result";
   ```
-- Event bus for internal pub/sub
+- All events formatted as SSE-compatible strings
 
-**8. API Module** (`backend/src/api/`)
+**7. API Module** (`backend/src/api/`)
 
 - Hono routes:
-  - POST `/api/sessions` - Create session
-  - GET `/api/sessions/:id` - Get session
-  - POST `/api/sessions/:id/messages` - Send message
-  - GET `/api/events` - SSE endpoint for all events
-  - POST `/api/approvals/:id` - Respond to approval
+  - GET `/health` - Health check
+  - POST `/api/sessions` - Create session (body: title, workingDirectory, provider, model, apiKey?)
+  - GET `/api/sessions` - List all sessions
+  - GET `/api/sessions/:id` - Get specific session
+  - PATCH `/api/sessions/:id` - Update session settings
+  - DELETE `/api/sessions/:id` - Delete session
+  - GET `/api/sessions/:id/messages` - Get message history
+  - POST `/api/sessions/:id/messages` - Send message & stream response (SSE)
+  - GET `/api/providers` - List available providers
+  - GET `/api/providers/:name/models` - Get model list
+  - GET `/api/providers/:name/api-key` - Get masked API key from .env
+  - POST `/api/providers/validate` - Validate API key
 
 #### Frontend Modules
 
 **1. Terminal Component** (`frontend/src/components/Terminal.tsx`)
 
-- Terminal-like UI with TailwindCSS
-- Dark theme, monospace font
-- Auto-scroll to latest message
-- Message type rendering (user/assistant/tool/approval)
+- Terminal-like UI with TailwindCSS dark theme
+- Monospace font, color-coded roles
+- Auto-scroll to latest messages during streaming
+- Message rendering: text, tool_use, tool_result
 
 **2. Input Box** (`frontend/src/components/InputBox.tsx`)
 
-- Text input with @ autocomplete
-- File/folder picker on @
-- Submit on Enter, multi-line support
-- Mode indicator
+- Text input with send button
+- Auto-focus when streaming finishes
+- Submit on Enter
+- Streaming state indicator
 
-**3. Approval Prompt** (`frontend/src/components/ApprovalPrompt.tsx`)
+**3. Session Components**
 
-- Display tool call details
-- Y/N buttons with keyboard shortcuts
-- Show tool name, input parameters
-- Feedback text input on deny
+- `SessionSwitcher.tsx` - Dropdown menu for switching sessions with keyboard navigation
+- `SetupModal.tsx` - Session creation (title, working directory, provider, model, API key)
+- `SettingsModal.tsx` - Update provider, model, working directory mid-conversation
 
-**4. Session Hook** (`frontend/src/hooks/useSession.ts`)
+**4. SSE Hook** (`frontend/src/hooks/useSSE.ts`)
 
-- Manage session state (Zustand)
-- Send messages to backend
-- Handle message history
-- Mode switching
+- EventSource connection to streaming endpoint
+- Parse SSE events (message.start, message.delta, tool.start, tool.result, message.done)
+- Update Zustand store with streaming deltas
+- Auto-reconnect on errors
 
-**5. SSE Hook** (`frontend/src/hooks/useSSE.ts`)
+**5. Session Store** (`frontend/src/stores/session.ts`)
 
-- Connect to `/api/events` on mount
-- Parse SSE events
-- Update session store
-- Handle reconnection
-
-**6. File Selector Hook** (`frontend/src/hooks/useFileSelector.ts`)
-
-- Detect @ symbol in input
-- Fetch file/folder list from backend
-- Show autocomplete dropdown
-- Insert selected path
+- Zustand store for session state
+- Manages: sessionId, workingDirectory, provider, model, messages, streaming state
+- Persists to localStorage for page refresh
+- Actions: addMessage, appendText, setStreaming, loadSession, etc.
 
 ### Phase-by-Phase Development
 
@@ -337,126 +305,102 @@ ai-coding-agent/
    - Configure TailwindCSS
    - Create App.tsx with basic layout
 
-#### Phase 2: Provider Integration
+#### Phase 2: Provider Integration ✅ COMPLETE
 
-1. **Provider abstraction**:
+1. **Provider abstraction**: ✅
+   - Created `backend/src/providers/base.ts` with interface
+   - Installed Anthropic SDK and OpenAI SDK
 
-   - Create `backend/src/providers/base.ts` with interface
-   - Install provider SDKs:
-     ```bash
-     bun add @anthropic-ai/sdk openai @google/generative-ai
-     ```
+2. **Anthropic provider**: ✅
+   - Implemented in `backend/src/providers/anthropic.ts`
+   - Streaming with tool calling support
+   - Static model list (Haiku, Sonnet, Opus variants)
 
-2. **Anthropic provider**:
+3. **OpenAI provider**: ✅
+   - Implemented in `backend/src/providers/openai.ts`
+   - Streaming with tool calling support
+   - Dynamic model fetching from API
 
-   - Implement in `backend/src/providers/anthropic.ts`
-   - Test streaming with basic prompt
-   - Handle tool calls in response
+#### Phase 3: Core Tools ✅ COMPLETE (bash planned)
 
-3. **OpenAI provider**:
-   - Implement in `backend/src/providers/openai.ts`
-   - Test streaming
-   - Ensure consistent interface with Anthropic
+1. **Tool registry**: ✅
+   - Created `backend/src/tools/base.ts` with Tool interface
+   - Created `backend/src/tools/index.ts` registry
 
-#### Phase 3: Core Tools
+2. **File tools**: ✅
+   - `read.ts`: Read file contents with path validation
+   - `write.ts`: Create/overwrite files
+   - `edit.ts`: String replacement edits
+   - Zod schemas for all inputs
 
-1. **Tool registry**:
+3. **Search tools**: ✅
+   - `grep.ts`: Regex search with context lines via fast-glob
+   - `glob.ts`: File pattern matching
 
-   - Create `backend/src/tools/base.ts` with Tool interface
-   - Create `backend/src/tools/index.ts` registry
+4. **Bash tool**: ⏳ PLANNED
+   - Shell command execution with approval system
 
-2. **File tools**:
+#### Phase 4: Session & API ✅ COMPLETE (approval planned)
 
-   - `read.ts`: Read file contents (async fs.readFile)
-   - `write.ts`: Write file (async fs.writeFile)
-   - `edit.ts`: Apply diff-based edits
-   - Zod schemas for each
-
-3. **Bash tool**:
-
-   - `bash.ts`: Execute shell commands with child_process
-   - Capture stdout/stderr
-   - Timeout support
-
-4. **Search tools**:
-   - `grep.ts`: Use ripgrep or grep command
-   - `glob.ts`: File listing with minimatch
-
-#### Phase 4: Session & Approval
-
-1. **Session manager**:
-
-   - Create `backend/src/session/index.ts`
-   - Implement create/resume/list sessions
+1. **Session manager**: ✅
+   - Created `backend/src/session/index.ts`
+   - Create/resume/list sessions
    - Message history persistence to PostgreSQL
-   - Mode enforcement (Ask/Plan/Build)
+   - Conversation orchestration with tool execution
 
-2. **Approval system**:
-
-   - Create `backend/src/approval/index.ts`
-   - Intercept tool calls
-   - Create approval records
-   - Wait for UI response
-   - Execute or cancel tool
-
-3. **API routes**:
+2. **API routes**: ✅
    - Sessions CRUD endpoints
-   - Messages POST endpoint
-   - Approvals POST endpoint
+   - Messages GET/POST endpoints with SSE streaming
+   - Provider endpoints (list, models, validate)
 
-#### Phase 5: Streaming & Frontend
+3. **Approval system**: ⏳ PLANNED
+   - Y/N prompts for dangerous operations
+   - Approval history tracking
 
-1. **SSE implementation**:
+#### Phase 5: Streaming & Frontend ✅ COMPLETE
 
-   - Create `backend/src/streaming/index.ts`
-   - Event bus with typed events
-   - `/api/events` SSE endpoint
-   - Test with curl/Postman
+1. **SSE implementation**: ✅
+   - Created `backend/src/streaming/index.ts`
+   - SSE event formatting
+   - POST `/api/sessions/:id/messages` returns SSE stream
 
-2. **Frontend session hook**:
+2. **Frontend state management**: ✅
+   - Zustand store in `frontend/src/stores/session.ts`
+   - API client in `frontend/src/api/client.ts`
+   - localStorage persistence
 
-   - `frontend/src/hooks/useSession.ts`
-   - Zustand store for session state
-   - API client functions
-
-3. **Frontend SSE hook**:
-
+3. **Frontend SSE hook**: ✅
    - `frontend/src/hooks/useSSE.ts`
    - EventSource connection
    - Parse events and update store
 
-4. **Terminal UI**:
-   - `frontend/src/components/Terminal.tsx`
-   - Message rendering with TailwindCSS
-   - Streaming indicator
-   - Auto-scroll
+4. **Terminal UI**: ✅
+   - Terminal-style message display
+   - Streaming indicator (blinking cursor)
+   - Auto-scroll to latest messages
+   - Session management UI (switcher, setup modal, settings modal)
 
-#### Phase 6: Testing & Polish
+#### Phase 6: Testing & Polish ⏳ PLANNED
 
 1. **Backend tests**:
-
    - Tool tests (unit): Each tool with mocked context
-   - Provider tests (integration): Mock API responses
+   - Provider tests: Mock API responses
    - Session tests: CRUD operations
-   - Approval flow tests: End-to-end approval scenario
-   - Vitest config targeting 90%+ coverage
+   - Vitest targeting 90%+ coverage
 
 2. **Frontend tests**:
-
-   - Component tests: Terminal, ApprovalPrompt, InputBox
-   - Hook tests: useSession, useSSE
+   - Component tests: Terminal, modals, input
+   - Hook tests: useSSE
    - Vitest + React Testing Library
 
 3. **GitHub Actions**:
+   - CI workflow with PostgreSQL service
+   - Coverage reporting
 
-   - `.github/workflows/ci.yml`: Run tests on push/PR
-   - `.github/workflows/coverage.yml`: Upload to Codecov
-   - PostgreSQL service in CI
-
-4. **Documentation**:
-   - README with setup instructions
-   - Environment variable docs
-   - API documentation
+4. **Documentation**: ✅ PARTIAL
+   - README with setup instructions ✅
+   - CLAUDE.md architecture guide ✅
+   - API documentation (in progress)
 
 ### Minimal Library Recommendations
 
@@ -465,19 +409,19 @@ ai-coding-agent/
 ```json
 {
   "dependencies": {
-    "hono": "^4.0.0", // HTTP server (4KB, fast)
-    "@hono/node-server": "^1.0.0", // Node adapter for Hono
-    "drizzle-orm": "^0.30.0", // Type-safe ORM
-    "postgres": "^3.4.0", // PostgreSQL client (node-postgres)
-    "zod": "^3.22.0", // Schema validation
+    "hono": "^4.0.0",
+    "drizzle-orm": "0.44.7",
+    "postgres": "^3.4.0",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.22.0",
     "@anthropic-ai/sdk": "^0.24.0",
-    "openai": "^4.28.0",
-    "@google/generative-ai": "^0.2.0"
+    "openai": "^6.9.1",
+    "fast-glob": "^3.3.3",
+    "dotenv": "^17.2.3"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.20.0", // Migrations
-    "vitest": "^1.2.0", // Testing
-    "@vitest/coverage-v8": "^1.2.0"
+    "drizzle-kit": "0.31.7",
+    "@types/bun": "latest"
   }
 }
 ```
@@ -487,17 +431,18 @@ ai-coding-agent/
 ```json
 {
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "zustand": "^4.5.0", // State management (2KB)
-    "clsx": "^2.1.0" // Class name utility
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
-    "vite": "^5.0.0",
-    "tailwindcss": "^3.4.0",
-    "vitest": "^1.2.0",
-    "@testing-library/react": "^14.1.0",
-    "@vitejs/plugin-react": "^4.2.0"
+    "vite": "^7.2.4",
+    "tailwindcss": "^4.1.17",
+    "@tailwindcss/vite": "^4.1.17",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.9.3",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2"
   }
 }
 ```
@@ -705,25 +650,13 @@ const displayPath =
   process.platform === "win32" ? path.replace(/\//g, "\\") : path;
 ```
 
-### Recommendation for AI Coding Agent
+### Current Implementation
 
-**Tauri is recommended** for this use case:
-
-1. **Bundle size**: Critical for distribution and downloads
-2. **Performance**: Faster startup improves development workflow
-3. **Security**: Rust IPC layer provides better sandboxing for shell commands
-4. **Memory**: Lower footprint important when LLMs may run locally
-5. **Modern**: Better fit for 2025+ projects
-
-**Implementation note**: For the given timeline, **Start with web-based UI** (React + Vite on localhost). Desktop wrapper can be added later:
-
-```bash
-# After web UI works:
-cargo install tauri-cli
-cargo tauri init
-# Configure Tauri to point to existing Vite frontend
-cargo tauri dev
-```
+**Web-based UI** (React 19 + Vite + TailwindCSS 4):
+- Terminal-style interface on localhost:3000
+- Real-time streaming via SSE
+- Session management with provider/model selection
+- Desktop wrapper (Tauri) possible future enhancement
 
 ### PostgreSQL + Drizzle Setup
 
@@ -743,7 +676,9 @@ import {
 export const sessions = pgTable("sessions", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: text("title").notNull(),
-  mode: text("mode").notNull(), // 'ask' | 'plan' | 'build'
+  workingDirectory: text("working_directory").notNull(),
+  provider: text("provider").notNull().default("anthropic"),
+  model: text("model").notNull().default("claude-3-5-haiku-latest"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -751,7 +686,7 @@ export const sessions = pgTable("sessions", {
 export const messages = pgTable("messages", {
   id: uuid("id").defaultRandom().primaryKey(),
   sessionId: uuid("session_id")
-    .references(() => sessions.id)
+    .references(() => sessions.id, { onDelete: "cascade" })
     .notNull(),
   role: text("role").notNull(), // 'user' | 'assistant'
   createdAt: timestamp("created_at").defaultNow(),
@@ -760,33 +695,11 @@ export const messages = pgTable("messages", {
 export const messageParts = pgTable("message_parts", {
   id: uuid("id").defaultRandom().primaryKey(),
   messageId: uuid("message_id")
-    .references(() => messages.id)
+    .references(() => messages.id, { onDelete: "cascade" })
     .notNull(),
-  type: text("type").notNull(), // 'text' | 'tool_call' | 'tool_result'
+  type: text("type").notNull(), // 'text' | 'tool_use' | 'tool_result'
   content: jsonb("content").notNull(),
   order: integer("order").notNull(),
-});
-
-export const toolCalls = pgTable("tool_calls", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  messageId: uuid("message_id")
-    .references(() => messages.id)
-    .notNull(),
-  toolName: text("tool_name").notNull(),
-  input: jsonb("input").notNull(),
-  output: jsonb("output"),
-  status: text("status").notNull(), // 'pending' | 'approved' | 'denied' | 'completed'
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const approvals = pgTable("approvals", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  toolCallId: uuid("tool_call_id")
-    .references(() => toolCalls.id)
-    .notNull(),
-  approved: boolean("approved"),
-  feedback: text("feedback"),
-  createdAt: timestamp("created_at").defaultNow(),
 });
 ```
 
@@ -798,8 +711,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-const connectionString =
-  process.env.DATABASE_URL || "postgresql://localhost:5432/goop";
+const connectionString = process.env.DATABASE_URL!;
 const client = postgres(connectionString);
 export const db = drizzle(client, { schema });
 ```

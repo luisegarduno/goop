@@ -5,7 +5,7 @@ interface MessagePart {
   text?: string;
   name?: string;
   result?: string;
-  input?: any;
+  input?: Record<string, unknown>;
 }
 
 interface Message {
@@ -30,13 +30,19 @@ interface SessionStore {
   addMessage: (message: Message) => void;
   setMessages: (messages: Message[]) => void;
   appendText: (text: string) => void;
-  addToolUse: (toolName: string, input: any) => void;
+  addToolUse: (toolName: string, input: Record<string, unknown>) => void;
   addToolResult: (result: string) => void;
   startNewMessage: () => void;
   finishStreaming: () => void;
   setStreaming: (streaming: boolean) => void;
   clearSession: () => void;
-  loadSession: (id: string, workingDir: string, provider: string, model: string, messages: Message[]) => void;
+  loadSession: (
+    id: string,
+    workingDir: string,
+    provider: string,
+    model: string,
+    messages: Message[]
+  ) => void;
 }
 
 export const useSessionStore = create<SessionStore>((set) => ({
@@ -140,7 +146,16 @@ export const useSessionStore = create<SessionStore>((set) => ({
     }),
   setStreaming: (streaming) => set({ isStreaming: streaming }),
   clearSession: () => {
-    set({ sessionId: null, workingDirectory: null, provider: null, model: null, messages: [], currentText: "", currentParts: [], isStreaming: false });
+    set({
+      sessionId: null,
+      workingDirectory: null,
+      provider: null,
+      model: null,
+      messages: [],
+      currentText: "",
+      currentParts: [],
+      isStreaming: false,
+    });
     localStorage.removeItem("goop_session_id");
     localStorage.removeItem("goop_working_directory");
     localStorage.removeItem("goop_provider");

@@ -112,7 +112,7 @@ export function SettingsModal({
       let data;
       try {
         data = await res.json();
-      } catch (jsonError) {
+      } catch {
         // If response is not JSON, handle gracefully
         setKeyValidated(false);
         setValidationError("Invalid response from server");
@@ -161,9 +161,9 @@ export function SettingsModal({
     try {
       await onSave(provider, model, apiKey.trim(), workingDirectory.trim());
       onClose();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to save settings:", error);
-      setSaveError(error.message || "Failed to save settings");
+      setSaveError(error instanceof Error ? error.message : "Failed to save settings");
     } finally {
       setSaving(false);
     }

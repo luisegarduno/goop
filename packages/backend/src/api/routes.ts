@@ -112,7 +112,10 @@ apiRoutes.get("/providers/:name/api-key", async (c) => {
       isConfigured: !!apiKey,
     });
   } catch (error: any) {
-    console.error(`[API] Failed to get API key for ${providerName}:`, error.message);
+    console.error(
+      `[API] Failed to get API key for ${providerName}:`,
+      error.message
+    );
     return c.json({ error: "Failed to retrieve API key" }, 500);
   }
 });
@@ -165,7 +168,9 @@ apiRoutes.post("/sessions", async (c) => {
     if (provider === "anthropic" && !providerInfo.models.includes(model)) {
       return c.json(
         {
-          error: `Invalid model for ${provider}. Allowed: ${providerInfo.models.join(", ")}`,
+          error: `Invalid model for ${provider}. Allowed: ${providerInfo.models.join(
+            ", "
+          )}`,
         },
         400
       );
@@ -245,7 +250,8 @@ apiRoutes.patch("/sessions/:id", async (c) => {
 
   // Validate API key if provided
   if (apiKey) {
-    const targetProvider = provider || (currentSession.provider as "anthropic" | "openai");
+    const targetProvider =
+      provider || (currentSession.provider as "anthropic" | "openai");
     try {
       const { validateProviderApiKey } = await import("../utils/validation");
       await validateProviderApiKey(targetProvider, apiKey);
@@ -259,7 +265,8 @@ apiRoutes.patch("/sessions/:id", async (c) => {
 
   // Validate model is valid for the provider (current or new)
   if (model !== undefined) {
-    const targetProvider = provider || (currentSession.provider as "anthropic" | "openai");
+    const targetProvider =
+      provider || (currentSession.provider as "anthropic" | "openai");
 
     try {
       const { getProviderInfo } = await import("../providers/index");
@@ -268,10 +275,15 @@ apiRoutes.patch("/sessions/:id", async (c) => {
       // For Anthropic, validate against static list
       // OpenAI models are not validated here because the model list is fetched dynamically
       // from the OpenAI API and may include models not in the static fallback list
-      if (targetProvider === "anthropic" && !providerInfo.models.includes(model)) {
+      if (
+        targetProvider === "anthropic" &&
+        !providerInfo.models.includes(model)
+      ) {
         return c.json(
           {
-            error: `Invalid model for ${targetProvider}. Allowed: ${providerInfo.models.join(", ")}`,
+            error: `Invalid model for ${targetProvider}. Allowed: ${providerInfo.models.join(
+              ", "
+            )}`,
           },
           400
         );
@@ -285,7 +297,9 @@ apiRoutes.patch("/sessions/:id", async (c) => {
   let providerChanged = false;
   if (provider !== undefined && currentSession.provider !== provider) {
     providerChanged = true;
-    console.log(`[API] Provider changed from ${currentSession.provider} to ${provider} - clearing message history`);
+    console.log(
+      `[API] Provider changed from ${currentSession.provider} to ${provider} - clearing message history`
+    );
   }
 
   // If provider changed, clear all messages for this session to avoid format incompatibility
@@ -314,6 +328,25 @@ apiRoutes.patch("/sessions/:id", async (c) => {
   }
 
   return c.json(updatedSession);
+});
+
+// Delete session
+apiRoutes.delete("/sessions/:id", async (c) => {
+  const sessionId = c.req.param("id");
+
+  // Check if session exists
+  const session = await db.query.sessions.findFirst({
+    where: eq(sessions.id, sessionId),
+  });
+
+  if (!session) {
+    return c.json({ error: "Session not found" }, 404);
+  }
+
+  // Delete session (cascade will delete messages and message parts)
+  await db.delete(sessions).where(eq(sessions.id, sessionId));
+
+  return c.json({ success: true, message: "Session deleted" });
 });
 
 // List sessions
@@ -374,7 +407,9 @@ apiRoutes.post("/sessions/:id/messages", async (c) => {
     console.error("[API] Failed to create provider:", error);
     return c.json(
       {
-        error: `Failed to initialize ${session.provider} provider: ${error.message}. Ensure ${session.provider.toUpperCase()}_API_KEY is set in .env`,
+        error: `Failed to initialize ${session.provider} provider: ${
+          error.message
+        }. Ensure ${session.provider.toUpperCase()}_API_KEY is set in .env`,
       },
       500
     );
@@ -396,18 +431,50 @@ apiRoutes.post("/sessions/:id/messages", async (c) => {
           content,
           workingDir
         )) {
-          const message = formatSSE(event);
-          controller.enqueue(encoder.encode(message));
+          try {
+            const message = formatSSE(event);
+            controller.enqueue(encoder.encode(message));
+          } catch (enqueueError: any) {
+            // Controller is already closed (likely timeout or client disconnect)
+            // Check for common controller closure indicators
+            const isControllerClosed =
+              enqueueError instanceof TypeError ||
+              enqueueError.message?.includes("invalid state") ||
+              enqueueError.code === "ERR_INVALID_STATE";
+
+            if (isControllerClosed) {
+              console.log(
+                "[SSE] Controller closed during enqueue, stopping stream"
+              );
+              return; // Exit the start function - controller is already closed
+            }
+            // Re-throw unexpected errors
+            throw enqueueError;
+          }
         }
       } catch (error: any) {
         console.error("Error in SSE stream:", error);
-        const errorEvent = formatSSE({
-          type: "message.done",
-          messageId: "",
-        });
-        controller.enqueue(encoder.encode(errorEvent));
+
+        // Try to send error event to client
+        try {
+          const errorEvent = formatSSE({
+            type: "message.done",
+            messageId: "",
+          });
+          controller.enqueue(encoder.encode(errorEvent));
+        } catch (enqueueError) {
+          // Controller closed, can't send error event
+          console.log(
+            "[SSE] Could not send error event, controller already closed"
+          );
+        }
       } finally {
-        controller.close();
+        try {
+          controller.close();
+        } catch (closeError) {
+          // Controller already closed, ignore
+          console.log("[SSE] Controller already closed in finally block");
+        }
       }
     },
   });

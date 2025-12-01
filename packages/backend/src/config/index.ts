@@ -33,7 +33,7 @@ export function loadConfig(): Config {
       apiKey: process.env.OPENAI_API_KEY,
     },
     server: {
-      port: process.env.PORT || 3001,
+      port: process.env.HONO_BACKEND_PORT || 3001,
       env: process.env.NODE_ENV || "development",
     },
   };
@@ -48,12 +48,18 @@ if (import.meta.main) {
     console.log("✓ Config loaded successfully");
     console.log("  Database URL:", config.database.url);
     if (config.anthropic.apiKey) {
-      console.log("  Anthropic API Key:", config.anthropic.apiKey.substring(0, 10) + "...");
+      console.log(
+        "  Anthropic API Key:",
+        config.anthropic.apiKey.substring(0, 10) + "..."
+      );
     } else {
       console.log("  Anthropic API Key: (not configured)");
     }
     if (config.openai.apiKey) {
-      console.log("  OpenAI API Key:", config.openai.apiKey.substring(0, 10) + "...");
+      console.log(
+        "  OpenAI API Key:",
+        config.openai.apiKey.substring(0, 10) + "..."
+      );
     } else {
       console.log("  OpenAI API Key: (not configured)");
     }

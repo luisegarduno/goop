@@ -1,6 +1,6 @@
-# GOOP Agent
+# GOOP
 
-A minimal AI coding agent with web UI, built with Bun, TypeScript, React, and PostgreSQL.
+An AI coding agent with a terminal-style web interface. Chat with Claude or GPT to read, write, and modify files in your project through a clean, persistent UI with real-time streaming responses.
 
 <table>
    <tr>
@@ -23,21 +23,13 @@ A minimal AI coding agent with web UI, built with Bun, TypeScript, React, and Po
 
 ## Features
 
-- 🤖 Multiple AI provider support (Anthropic Claude, OpenAI GPT)
-- 🎛️ Model selection per session with runtime switching
-- 🔑 API key validation before session creation
-- 🛠️ Comprehensive tool system with path validation:
-  - 📖 `read_file` - Read file contents
-  - ✍️ `write_file` - Create/overwrite files
-  - ✏️ `edit_file` - Search and replace text in files
-  - 🔍 `grep` - Search for regex patterns across files
-  - 📂 `glob` - Find files matching glob patterns
-- 💬 Real-time streaming responses via Server-Sent Events
-- 🗄️ PostgreSQL conversation persistence with sessions
-- 🎨 Terminal-like web UI with session management
-- 🔄 Session switching between multiple conversations
-- ⚙️ Mid-conversation settings updates
-- 🗂️ Working directory configuration per session
+- **Multiple AI Providers** - Switch between Anthropic Claude and OpenAI GPT models
+- **Comprehensive File Tools** - Read, write, edit files, search with grep, and find files with glob patterns
+- **Real-time Streaming** - See AI responses stream in via Server-Sent Events
+- **Session Management** - Create multiple persistent chat sessions with independent working directories
+- **Terminal-Style UI** - Clean, developer-friendly interface with keyboard navigation
+- **Type-Safe Architecture** - Built with TypeScript, Zod validation, and Drizzle ORM
+- **Secure by Default** - Path validation prevents file access outside working directories
 
 ## Prerequisites
 
@@ -76,111 +68,99 @@ A minimal AI coding agent with web UI, built with Bun, TypeScript, React, and Po
 
    The frontend will open automatically in your browser.
 
+4. Start chatting
+
+   - On first load, you'll see a setup modal - enter a session title and working directory
+   - Choose your AI provider (Claude or GPT) and model
+   - Start asking the AI to read, modify, or search files in your working directory
+   - Create multiple sessions for different projects or tasks
+
+## Common Commands
+
+**Root (all packages):**
+
+```bash
+bun run dev        # Start all dev servers
+bun run build      # Build all packages
+bun run typecheck  # Type-check all packages
+```
+
+**Backend (`packages/backend`):**
+
+```bash
+bun run dev         # Start dev server with hot reload
+bun run db:generate # Generate migrations from schema changes
+bun run db:migrate  # Apply migrations to database
+bun test            # Run tests
+```
+
+**Frontend (`packages/frontend`):**
+
+```bash
+bun run dev    # Start Vite dev server
+bun run build  # Build for production
+bun run lint   # Run ESLint
+```
+
 ## Project Structure
+
+This is a Bun workspace monorepo with two main packages:
 
 ```
 goop/
 ├── packages/
-│   ├── backend/                    # Backend API (Bun + Hono + Drizzle)
-│   │   ├── src/
-│   │   │   ├── index.ts           # Hono server entry point
-│   │   │   ├── api/               # API routes & SSE endpoints
-│   │   │   │   └── routes.ts      # REST & streaming endpoints
-│   │   │   ├── config/            # Configuration & Zod schemas
-│   │   │   │   ├── index.ts       # Environment config loader
-│   │   │   │   └── schema.ts      # Zod validation schemas
-│   │   │   ├── db/                # Database layer
-│   │   │   │   ├── index.ts       # Drizzle client setup
-│   │   │   │   ├── schema.ts      # Table definitions & relations
-│   │   │   │   ├── migrate.ts     # Migration runner
-│   │   │   │   └── migrations/    # Generated SQL migrations
-│   │   │   ├── providers/         # AI provider integrations
-│   │   │   │   ├── base.ts        # Provider interface
-│   │   │   │   ├── index.ts       # Provider registry
-│   │   │   │   ├── anthropic.ts   # Anthropic Claude provider
-│   │   │   │   └── openai.ts      # OpenAI GPT provider
-│   │   │   ├── tools/             # Tool system
-│   │   │   │   ├── base.ts        # Tool interface
-│   │   │   │   ├── index.ts       # Tool registry
-│   │   │   │   ├── read.ts        # Read file tool
-│   │   │   │   ├── write.ts       # Write file tool
-│   │   │   │   ├── edit.ts        # Edit file tool
-│   │   │   │   ├── grep.ts        # Search with regex tool
-│   │   │   │   └── glob.ts        # Find files tool
-│   │   │   ├── session/           # Session management
-│   │   │   │   └── index.ts       # Session orchestration
-│   │   │   ├── streaming/         # SSE event formatting
-│   │   │   │   └── index.ts       # Event definitions & formatters
-│   │   │   └── utils/             # Utility functions
-│   │   │       ├── security.ts    # Security helpers
-│   │   │       └── validation.ts  # Validation utilities
-│   │   ├── drizzle.config.ts      # Drizzle Kit configuration
-│   │   └── package.json
+│   ├── backend/           # Hono server + Drizzle ORM + PostgreSQL
+│   │   └── src/
+│   │       ├── api/       # REST & SSE endpoints
+│   │       ├── db/        # Database schema & migrations
+│   │       ├── providers/ # AI provider integrations (Claude, GPT)
+│   │       ├── tools/     # File operation tools (read, write, edit, grep, glob)
+│   │       ├── session/   # Session & conversation orchestration
+│   │       └── streaming/ # Server-Sent Events formatting
 │   │
-│   └── frontend/                   # Frontend UI (React + Vite)
-│       ├── src/
-│       │   ├── main.tsx           # React entry point
-│       │   ├── App.tsx            # Root component
-│       │   ├── components/        # UI components
-│       │   │   ├── Terminal.tsx   # Terminal message display
-│       │   │   ├── InputBox.tsx   # Message input field
-│       │   │   ├── SetupModal.tsx # Session setup modal
-│       │   │   ├── SettingsModal.tsx # Session settings modal
-│       │   │   └── SessionSwitcher.tsx # Session navigation dropdown
-│       │   ├── hooks/             # Custom React hooks
-│       │   │   └── useSSE.ts      # SSE connection hook
-│       │   ├── stores/            # Zustand state management
-│       │   │   └── session.ts     # Session & message store
-│       │   ├── api/               # API client
-│       │   │   └── client.ts      # Backend communication
-│       │   └── styles/            # Global styles
-│       │       └── index.css      # Tailwind imports
-│       ├── index.html
-│       ├── vite.config.ts         # Vite configuration
-│       ├── tailwind.config.js     # Tailwind theme config
-│       └── package.json
+│   └── frontend/          # React 19 + Vite + TailwindCSS
+│       └── src/
+│           ├── components/ # Terminal UI, modals, session switcher
+│           ├── stores/     # Zustand state management
+│           ├── hooks/      # SSE connection hook
+│           └── api/        # Backend API client
 │
-├── docker-compose.yml              # PostgreSQL 17 container
-├── .env.example                    # Environment template
-├── .env                            # Local environment config (git-ignored)
-├── package.json                    # Workspace root
-├── tsconfig.json                   # Shared TypeScript config
-├── bun.lockb                       # Bun lockfile
-├── setup.sh                        # Quick setup script
-├── CLAUDE.md                       # Claude Code instructions
-├── spec.md                         # Full implementation spec
-└── README.md
+├── docker-compose.yml     # PostgreSQL 17 container
+├── .env.example           # Environment template
+└── setup.sh               # Quick setup script
 ```
+
+> See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
 
 ## Tech Stack
 
 ### Backend
 
-| Package                | Version  | Purpose                       |
-| ---------------------- | -------- | ----------------------------- |
-| **Bun**                | >= 1.0   | Runtime & package manager     |
-| **Hono**               | ^4.0.0   | Lightweight web framework     |
-| **Drizzle ORM**        | 0.44.7   | TypeScript-first ORM          |
-| **Drizzle Kit**        | 0.31.7   | Schema migrations             |
-| **PostgreSQL**         | 17       | Relational database           |
-| **postgres**           | ^3.4.0   | PostgreSQL client             |
-| **Zod**                | ^3.25.76 | Schema validation             |
-| **zod-to-json-schema** | ^3.22.0  | Zod to JSON Schema conversion |
-| **@anthropic-ai/sdk**  | ^0.24.0  | Claude API integration        |
-| **openai**             | ^6.9.1   | OpenAI GPT integration        |
-| **fast-glob**          | ^3.3.3   | Fast file pattern matching    |
-| **dotenv**             | ^17.2.3  | Environment config            |
+| Package                | Purpose                       |
+| ---------------------- | ----------------------------- |
+| **Bun**                | Runtime & package manager     |
+| **Hono**               | Lightweight web framework     |
+| **Drizzle ORM**        | TypeScript-first ORM          |
+| **Drizzle Kit**        | Schema migrations             |
+| **PostgreSQL**         | Relational database           |
+| **postgres**           | PostgreSQL client             |
+| **Zod**                | Schema validation             |
+| **zod-to-json-schema** | Zod to JSON Schema conversion |
+| **@anthropic-ai/sdk**  | Claude API integration        |
+| **openai**             | OpenAI GPT integration        |
+| **fast-glob**          | Fast file pattern matching    |
+| **dotenv**             | Environment config            |
 
 ### Frontend
 
-| Package               | Version | Purpose                 |
-| --------------------- | ------- | ----------------------- |
-| **React**             | ^19.2.0 | UI framework            |
-| **Vite**              | ^7.2.4  | Build tool & dev server |
-| **TailwindCSS**       | ^4.1.17 | Utility-first CSS       |
-| **@tailwindcss/vite** | ^4.1.17 | Vite integration        |
-| **Zustand**           | ^5.0.8  | State management        |
-| **TypeScript**        | ~5.9.3  | Type safety             |
+| Package               | Purpose                 |
+| --------------------- | ----------------------- |
+| **React**             | UI framework            |
+| **Vite**              | Build tool & dev server |
+| **TailwindCSS**       | Utility-first CSS       |
+| **@tailwindcss/vite** | Vite integration        |
+| **Zustand**           | State management        |
+| **TypeScript**        | Type safety             |
 
 ### DevOps
 
@@ -188,27 +168,38 @@ goop/
 - **ESLint** - Code linting
 - **TypeScript** ^5.9.3 - Type checking
 
-## Coding Agents
+## Built with AI Assistance
 
-Within this project, ClaudeCode has been used to generate the code for the backend and frontend.
-Custom commands & agents have been used to help with the development of the project.
+This project was developed using [Claude Code](https://claude.ai/code) with custom slash commands for planning and implementation. The project includes custom commands in [`.claude/commands/`](.claude/commands/) that demonstrate AI-assisted development workflows:
 
-Primarily, the commands I used were [create_plan.md](.claude/commands/create_plan.md), [implement_plan.md](.claude/commands/implement_plan.md), [research_codebase.md](.claude/commands/research_codebase.md).
+- `/create_plan` - Generate implementation plans from specifications
+- `/implement_plan` - Execute plans with verification
+- `/research_codebase` - Document and analyze code structure
 
-- [create_plan.md](.claude/commands/create_plan.md) was used to create the implementation plan. I used [spec.md](spec.md) to guide the creation of the plan.
-- [implement_plan.md](.claude/commands/implement_plan.md) was used to implement the plan.
-- [research_codebase.md](.claude/commands/research_codebase.md) was used to research the codebase.
+See [spec.md](spec.md) for the original project specification.
 
-## Roadmap
+## Development Status
 
-- [x] Phase 1: Foundation
-- [x] Phase 2: Initial Providers (Anthropic Claude, OpenAI GPT)
-- [x] Phase 3: Initial tools (read, write, edit, grep, glob)
-- [ ] Phase 4: Approval system (current)
-- [ ] Phase 5: Mode system (Ask/Plan/Build)
-- [ ] Phase 6: Testing & CI/CD
-- [ ] Phase 7: Additional providers (Google Gemini, local/llama.cpp)
-- [ ] Phase 8: Additional tools (bash)
+**Current Status:** Core functionality complete (Phases 1-6)
+
+**Completed:**
+
+- Infrastructure & monorepo setup
+- Database schema with PostgreSQL + Drizzle ORM
+- Backend API with Hono server & SSE streaming
+- Anthropic Claude & OpenAI GPT provider integrations
+- Session manager with conversation orchestration
+- Terminal-style React UI with real-time streaming
+- File operation tools: read, write, edit, grep, glob
+
+**Planned Enhancements:**
+
+- User approval system for dangerous operations (write, edit, bash)
+- Additional tools: bash command execution
+- Additional providers: Google Gemini, local llama.cpp models
+- Mode system: Ask (read-only), Plan (analysis), Build (full access)
+- Comprehensive testing & CI/CD
+- Session export/import and search functionality
 
 ## License
 
