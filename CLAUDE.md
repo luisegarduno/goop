@@ -6,7 +6,7 @@ This file provides guidance to Claude Code when working with this codebase.
 
 **goop** is an AI Coding Agent monorepo with Bun workspaces. Backend: Hono + Drizzle ORM + PostgreSQL + AI Provider APIs (Anthropic Claude & OpenAI GPT). Frontend: React 19 + Vite + TailwindCSS 4 + Zustand.
 
-**Status:** Core functionality complete (Phases 1-6). Terminal-style UI with SSE streaming, multi-provider support, and comprehensive tool system (read, write, edit, grep, glob).
+**Status:** Core functionality complete (Phases 1-6). Terminal-style UI with SSE streaming, multi-provider support, and comprehensive tool system (read, write, edit, grep, glob). Providers come in two kinds: API-key chat providers (`anthropic`, `openai`) and subscription-backed agent providers (`claude-code` via the Claude Agent SDK, `codex` via the Codex SDK) that bill the user's own Claude Pro/Max or ChatGPT plan through their CLI logins.
 
 ## Quick Start
 
@@ -31,11 +31,21 @@ cd packages/frontend && bun run dev
 **Environment Variables** (`.env` in root):
 ```
 DATABASE_URL=postgresql://user:pass@localhost:5432/goop
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...   # optional when using the claude-code subscription provider
+OPENAI_API_KEY=sk-...          # optional when using the codex subscription provider
 HONO_BACKEND_PORT=3001
 NODE_ENV=development
+# Optional overrides:
+# FRONTEND_ORIGIN=http://localhost:3000   (backend CORS origin)
+# VITE_API_BASE=http://localhost:3001/api (frontend -> backend base URL)
+# CLAUDE_CODE_OAUTH_TOKEN=...             (headless auth for claude-code provider)
 ```
+
+**Subscription providers** need a one-time CLI login instead of API keys:
+- `claude-code`: run `claude` → `/login` (Claude Pro/Max). Detection checks
+  `CLAUDE_CODE_OAUTH_TOKEN`, `~/.claude/.credentials.json`, and `~/.claude.json`.
+- `codex`: run `codex login` (ChatGPT Plus/Pro). Detection checks `$CODEX_HOME/auth.json`
+  (default `~/.codex/auth.json`). The `codex` binary is bundled via `@openai/codex-sdk`.
 
 ## Common Commands
 
@@ -68,10 +78,15 @@ packages/backend/src/
 │   ├── migrate.ts         # Migration runner
 │   └── migrations/        # Generated SQL
 ├── providers/
-│   ├── base.ts            # Provider interface
-│   ├── anthropic.ts       # Claude integration
-│   └── openai.ts          # GPT integration
-├── session/index.ts       # Conversation orchestration
+│   ├── base.ts            # Chat Provider interface (API-key providers)
+│   ├── anthropic.ts       # Claude integration (API key)
+│   ├── openai.ts          # GPT integration (API key)
+│   └── agent/             # Subscription-backed agent providers
+│       ├── types.ts       # AgentProvider interface + AgentStreamEvent
+│       ├── claude-code.ts # Claude Agent SDK wrapper (Claude Pro/Max)
+│       ├── codex.ts       # Codex SDK wrapper (ChatGPT plans)
+│       └── recap.ts       # Conversation recap for unresumable sessions
+├── session/index.ts       # Conversation orchestration (chat + agent paths)
 ├── streaming/index.ts     # SSE event formatting
 ├── tools/
 │   ├── base.ts            # Tool interface
@@ -79,7 +94,8 @@ packages/backend/src/
 │   └── index.ts           # Tool registry
 ├── utils/
 │   ├── security.ts        # Path validation
-│   └── validation.ts      # API key validation
+│   ├── validation.ts      # API key validation
+│   └── agent-auth.ts      # CLI login detection for subscription providers
 └── index.ts               # Hono server entry
 ```
 
@@ -93,16 +109,15 @@ packages/frontend/src/
 │   ├── SessionSwitcher.tsx # Session dropdown
 │   ├── SetupModal.tsx     # Session creation
 │   └── SettingsModal.tsx  # Provider/model settings
-├── hooks/useSSE.ts        # EventSource hook
 ├── stores/session.ts      # Zustand store
-└── App.tsx                # Root component
+└── App.tsx                # Root component (also handles SSE stream parsing)
 ```
 
 ### Database Schema
 
 **PostgreSQL 17** via Docker. Three tables with UUID PKs and cascade deletes:
 
-1. **sessions** - id, title, working_directory, provider, model, timestamps
+1. **sessions** - id, title, working_directory, provider, model, agent_session_id (native Claude Code session / Codex thread id for resume; null for API-key providers), timestamps
 2. **messages** - id, session_id (FK), role (user|assistant), created_at
 3. **message_parts** - id, message_id (FK), type (text|tool_use|tool_result), content (jsonb), order
 
@@ -130,11 +145,30 @@ bun run db:migrate
 ```
 
 ### Provider System
+Two provider kinds, both created via `createProvider()` in `src/providers/index.ts`:
+
+**Chat providers** (`authType: "api_key"`) - goop runs the tool loop:
 - Abstract `Provider` interface in `src/providers/base.ts`
 - Async generator yields `StreamEvent` (text deltas, tool_use, completion)
-- Per-session provider/model stored in database
-- Anthropic: Static model list (Haiku, Sonnet, Opus variants)
+- Anthropic: Static model list (current aliases, e.g. claude-opus-4-8)
 - OpenAI: Dynamic model fetching from API
+
+**Agent providers** (`authType: "subscription"`) - the runtime runs its own tool loop:
+- `AgentProvider` interface in `src/providers/agent/types.ts`; `runTurn()` yields
+  `AgentStreamEvent` (session id, text, tool_use, tool_result)
+- `claude-code`: wraps `@anthropic-ai/claude-agent-sdk` `query()`. Restricted to
+  goop's file tools (Read/Write/Edit/Grep/Glob, no Bash), `permissionMode: "dontAsk"`,
+  `ANTHROPIC_API_KEY` stripped from the subprocess env so billing stays on the
+  subscription. Models are CLI aliases (sonnet/opus/haiku).
+- `codex`: wraps `@openai/codex-sdk` threads. `sandboxMode: "workspace-write"`,
+  `approvalPolicy: "never"`, `OPENAI_API_KEY` stripped. Model "default" defers to
+  the Codex CLI's configured default.
+- Native sessions resume via `sessions.agent_session_id`; if resume fails (or the
+  working directory changed, which clears the id), the turn falls back to a fresh
+  session seeded with a recap built from stored history (`agent/recap.ts`).
+- Event mappers (`ClaudeCodeEventMapper`, `CodexEventMapper`) are exported and
+  unit-tested with synthetic SDK events.
+- Per-session provider/model stored in database (both kinds)
 
 ### Tool System
 - Tools implement `Tool<T>` with Zod schema, name, description, execute()
@@ -150,6 +184,13 @@ bun run db:migrate
 4. Tools executed automatically with results fed back to provider
 5. All message parts persisted to DB
 6. SSE events: `message.start`, `message.delta`, `tool.start`, `tool.result`, `message.done`
+
+For agent providers the flow is the same from the client's perspective, but steps 3-4
+happen inside the agent runtime (`SessionManager.processAgentMessage`): goop mirrors the
+runtime's events into the same SSE grammar and DB part shapes, stores the native
+session/thread id for resume, and pre-checks CLI login (returning 400 with a login hint
+when unauthenticated). Stream errors are surfaced as a `message.delta` with `⚠ ...`
+before `message.done`.
 
 ### Frontend State
 - Zustand store in `src/stores/session.ts`
@@ -172,10 +213,11 @@ bun run db:migrate
 - `POST /api/sessions/:id/messages` - Send message & stream response (SSE)
 
 **Providers:**
-- `GET /api/providers` - List available providers
+- `GET /api/providers` - List available providers (includes `authType`: api_key | subscription)
 - `GET /api/providers/:name/models` - Get model list
-- `GET /api/providers/:name/api-key` - Get masked API key from .env
-- `POST /api/providers/validate` - Validate API key
+- `GET /api/providers/:name/status` - Auth status (env key present, or CLI login state for subscription providers)
+- `GET /api/providers/:name/api-key` - Get masked API key from .env (subscription providers report none)
+- `POST /api/providers/validate` - Validate API key (api_key providers only)
 
 ## Development Notes
 
@@ -193,7 +235,12 @@ bun run db:migrate
 - All file tools validate paths against `workingDir` (session-scoped)
 - API keys validated but NOT stored in DB
 - Zod schema validation on all inputs
-- CORS restricted to frontend origin
+- CORS restricted to frontend origin (`FRONTEND_ORIGIN` overridable)
+- Subscription providers never handle credentials: goop only detects existing CLI
+  logins on the local machine and delegates auth to the official SDKs. Per
+  Anthropic's terms, do not host goop as a multi-user service on subscription
+  auth - claude.ai login may not be offered to a product's end users; use API keys
+  for anything beyond personal use.
 
 ### Session Lifecycle
 - SetupModal on first load → create session with title, workingDir, provider, model

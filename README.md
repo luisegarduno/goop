@@ -24,6 +24,7 @@ An AI coding agent with a terminal-style web interface. Chat with Claude or GPT 
 ## Features
 
 - **Multiple AI Providers** - Switch between Anthropic Claude and OpenAI GPT models
+- **Subscription Plans Supported** - Use your own Claude Pro/Max plan (via Claude Code) or ChatGPT Plus/Pro plan (via Codex) instead of API keys
 - **Comprehensive File Tools** - Read, write, edit files, search with grep, and find files with glob patterns
 - **Real-time Streaming** - See AI responses stream in via Server-Sent Events
 - **Session Management** - Create multiple persistent chat sessions with independent working directories
@@ -35,8 +36,10 @@ An AI coding agent with a terminal-style web interface. Chat with Claude or GPT 
 
 - [Bun](https://bun.sh) >= 1.0
 - [Docker](https://docker.com) & Docker Compose
-- Anthropic API key (required)
-- OpenAI API key (optional, for GPT models)
+- At least one way to reach a model:
+  - Anthropic API key and/or OpenAI API key (usage-based billing), **or**
+  - A Claude Pro/Max subscription (log in once with the `claude` CLI), **or**
+  - A ChatGPT Plus/Pro plan (log in once with `codex login`)
 
 ## Quick Start
 
@@ -49,11 +52,11 @@ An AI coding agent with a terminal-style web interface. Chat with Claude or GPT 
    ./setup.sh
    ```
 
-2. Add API keys to `.env`
+2. Add API keys to `.env` (skip this if you only use subscription providers)
 
    ```env
-   ANTHROPIC_API_KEY=sk-ant-...
-   OPENAI_API_KEY=sk-...  # Optional
+   ANTHROPIC_API_KEY=sk-ant-...  # Optional if using a Claude subscription
+   OPENAI_API_KEY=sk-...         # Optional, for GPT models via API
    ```
 
 3. Run monorepo
@@ -71,9 +74,39 @@ An AI coding agent with a terminal-style web interface. Chat with Claude or GPT 
 4. Start chatting
 
    - On first load, you'll see a setup modal - enter a session title and working directory
-   - Choose your AI provider (Claude or GPT) and model
+   - Choose your AI provider and model:
+     - **Anthropic Claude / OpenAI GPT** - API-key providers (usage-based billing)
+     - **Claude Code (Pro/Max subscription)** - runs the Claude Code agent with your own Claude plan
+     - **OpenAI Codex (ChatGPT subscription)** - runs the Codex agent with your own ChatGPT plan
    - Start asking the AI to read, modify, or search files in your working directory
    - Create multiple sessions for different projects or tasks
+
+### Using your Claude or ChatGPT subscription
+
+The two subscription providers wrap the official agent runtimes instead of calling
+the raw APIs, so no API key is needed and usage is billed to your existing plan:
+
+- **Claude Code (Pro/Max)** - uses the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview),
+  which picks up your existing Claude Code login. Log in once by running `claude`
+  in any terminal and using `/login` (or set `CLAUDE_CODE_OAUTH_TOKEN` from
+  `claude setup-token` for headless machines). Models: `sonnet`, `opus` (Max only), `haiku`.
+- **OpenAI Codex (ChatGPT Plus/Pro)** - uses the official
+  [Codex SDK](https://learn.chatgpt.com/docs/codex-sdk); the `codex` binary ships with
+  goop's dependencies. Log in once with `codex login` (or `bunx codex login` from this
+  repo) and sign in with your ChatGPT account. The `default` model entry defers to the
+  Codex CLI's current default.
+
+The setup/settings modals show your login state per provider and a `Re-check` button
+after you log in. Turns run through each runtime's own tool loop (Claude Code is
+restricted to goop's file tools; Codex runs in its `workspace-write` OS sandbox), and
+conversations resume natively via the runtime's session/thread id stored per session.
+
+> **Note on terms:** both providers rely on you being logged in with your *own*
+> account on the machine where goop runs - the same personal use the vendors'
+> own tools support. Anthropic [does not permit](https://code.claude.com/docs/en/agent-sdk/overview)
+> products to offer claude.ai login to *their* users or route requests through other
+> people's Pro/Max credentials, so don't deploy goop as a hosted service on
+> subscription auth - use API keys for anything multi-user.
 
 ## Common Commands
 
