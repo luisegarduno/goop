@@ -57,11 +57,11 @@ describe("Integration: Session Lifecycle", () => {
     // Update
     const updated = await updateSession(created.id, {
       title: "Updated Title",
-      model: "claude-sonnet-4-0",
+      model: "claude-sonnet-4-5",
     });
 
     expect(updated.title).toBe("Updated Title");
-    expect(updated.model).toBe("claude-sonnet-4-0");
+    expect(updated.model).toBe("claude-sonnet-4-5");
   });
 
   test("list all sessions", async () => {
@@ -76,7 +76,7 @@ describe("Integration: Session Lifecycle", () => {
       TEST_WORKING_DIR,
       "Session 2",
       "anthropic",
-      "claude-sonnet-4-0"
+      "claude-sonnet-4-5"
     );
 
     // Track for cleanup

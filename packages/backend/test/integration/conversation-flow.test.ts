@@ -110,7 +110,8 @@ describe("Integration: Conversation Flow", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: "List files in current directory using glob tool",
+          content:
+            "Use the glob tool to list every file matching the pattern \"*\" in the current directory. You must call the glob tool to answer.",
         }),
       }
     );
