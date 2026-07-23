@@ -3,6 +3,7 @@ import { AnthropicProvider, ANTHROPIC_MODELS } from "./anthropic";
 import { OpenAIProvider, OPENAI_MODELS } from "./openai";
 import { ClaudeCodeProvider, CLAUDE_CODE_MODELS } from "./agent/claude-code";
 import { CodexProvider, CODEX_MODELS } from "./agent/codex";
+import { MockProvider, MOCK_MODELS, isMockEnabled } from "./mock";
 import { AgentProvider } from "./agent/types";
 
 export const PROVIDER_NAMES = [
@@ -10,9 +11,21 @@ export const PROVIDER_NAMES = [
   "openai",
   "claude-code",
   "codex",
+  // Test-only deterministic provider; never surfaced in the product list and
+  // only creatable when NODE_ENV === "test" (guarded in the API routes).
+  "mock",
 ] as const;
 
 export type ProviderName = (typeof PROVIDER_NAMES)[number];
+
+/** Provider info for the test-only mock provider (see providers/mock.ts). */
+const MOCK_PROVIDER_INFO: ProviderInfo = {
+  name: "mock",
+  displayName: "Mock (test only)",
+  models: MOCK_MODELS,
+  authType: "api_key",
+  description: "Deterministic offline provider used by the integration tests.",
+};
 
 /** Providers authenticated with an API key (usage-based billing). */
 export const API_KEY_PROVIDERS = ["anthropic", "openai"] as const;
@@ -83,12 +96,20 @@ export function createProvider(
       return new ClaudeCodeProvider(model);
     case "codex":
       return new CodexProvider(model);
+    case "mock":
+      if (!isMockEnabled()) {
+        throw new Error("Mock provider is only available in the test environment");
+      }
+      return new MockProvider(model);
     default:
       throw new Error(`Unknown provider: ${providerName}`);
   }
 }
 
 export function getProviderInfo(providerName: ProviderName): ProviderInfo {
+  if (providerName === "mock" && isMockEnabled()) {
+    return MOCK_PROVIDER_INFO;
+  }
   const info = AVAILABLE_PROVIDERS.find((p) => p.name === providerName);
   if (!info) {
     throw new Error(`Unknown provider: ${providerName}`);
@@ -97,6 +118,7 @@ export function getProviderInfo(providerName: ProviderName): ProviderInfo {
 }
 
 // Re-export for convenience
-export { ANTHROPIC_MODELS, OPENAI_MODELS, CLAUDE_CODE_MODELS, CODEX_MODELS };
+export { ANTHROPIC_MODELS, OPENAI_MODELS, CLAUDE_CODE_MODELS, CODEX_MODELS, MOCK_MODELS };
+export { isMockEnabled };
 export type { AgentProvider };
 export { isAgentProvider } from "./agent/types";

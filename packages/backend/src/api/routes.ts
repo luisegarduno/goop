@@ -10,6 +10,15 @@ import { formatSSE } from "../streaming/index";
 import type { Provider } from "../providers/base";
 import type { AgentProvider } from "../providers/agent/types";
 
+// Providers a session may use. The test-only "mock" provider is accepted only
+// when NODE_ENV === "test" so the integration suite can exercise goop's own
+// pipeline without live, billed API calls; it is never offered in production.
+const SESSION_PROVIDER_NAMES = (
+  process.env.NODE_ENV === "test"
+    ? (["anthropic", "openai", "claude-code", "codex", "mock"] as const)
+    : (["anthropic", "openai", "claude-code", "codex"] as const)
+) as [string, ...string[]];
+
 // Get available providers
 apiRoutes.get("/providers", async (c) => {
   const { AVAILABLE_PROVIDERS } = await import("../providers/index");
@@ -182,9 +191,7 @@ apiRoutes.post("/sessions", async (c) => {
     .object({
       title: z.string().default("New Conversation"),
       workingDirectory: z.string().min(1, "Working directory is required"),
-      provider: z
-        .enum(["anthropic", "openai", "claude-code", "codex"])
-        .default("anthropic"),
+      provider: z.enum(SESSION_PROVIDER_NAMES).default("anthropic"),
       model: z.string().min(1, "Model is required"),
       apiKey: z.string().optional(), // Optional for validation
     })
@@ -217,7 +224,9 @@ apiRoutes.post("/sessions", async (c) => {
   // Validate model is valid for provider
   try {
     const { getProviderInfo } = await import("../providers/index");
-    const providerInfo = getProviderInfo(provider);
+    const providerInfo = getProviderInfo(
+      provider as import("../providers/index").ProviderName
+    );
 
     // For Anthropic, validate against static list
     // OpenAI models are not validated to allow dynamic models and fine-tuned variants
@@ -276,7 +285,7 @@ apiRoutes.patch("/sessions/:id", async (c) => {
     .object({
       title: z.string().optional(),
       workingDirectory: z.string().optional(),
-      provider: z.enum(["anthropic", "openai", "claude-code", "codex"]).optional(),
+      provider: z.enum(SESSION_PROVIDER_NAMES).optional(),
       model: z.string().optional(),
       apiKey: z.string().optional(),
     })

@@ -90,8 +90,8 @@ describe("Integration: Session Lifecycle", () => {
     const session = await createSession(
       TEST_WORKING_DIR,
       "Provider Change Test",
-      "anthropic",
-      "claude-haiku-4-5"
+      "mock",
+      "mock-model"
     );
 
     // Track for cleanup

@@ -42,8 +42,8 @@ describe("Integration: Conversation Flow", () => {
     const session = await createSession(
       TEST_WORKING_DIR,
       "[TEST] Integration Test - Text Response",
-      "anthropic",
-      "claude-haiku-4-5"
+      "mock",
+      "mock-model"
     );
 
     expect(session.id).toBeDefined();
@@ -97,8 +97,8 @@ describe("Integration: Conversation Flow", () => {
     const session = await createSession(
       TEST_WORKING_DIR,
       "[TEST] Integration Test - Tool Execution",
-      "anthropic",
-      "claude-haiku-4-5"
+      "mock",
+      "mock-model"
     );
 
     createdSessionIds.push(session.id); // Track for cleanup
@@ -110,8 +110,7 @@ describe("Integration: Conversation Flow", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content:
-            "Use the glob tool to list every file matching the pattern \"*\" in the current directory. You must call the glob tool to answer.",
+          content: "List files in the current directory using the glob tool.",
         }),
       }
     );
