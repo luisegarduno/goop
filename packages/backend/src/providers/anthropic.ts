@@ -2,25 +2,25 @@ import Anthropic from "@anthropic-ai/sdk";
 import { Provider, ProviderMessage, StreamEvent, ToolDefinition } from "./base";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
-// Add model list constant
+// Current Claude model aliases (older claude-3-* models are retired and 404)
 export const ANTHROPIC_MODELS = [
-  "claude-3-haiku-20240307",
-  "claude-3-5-haiku-latest",
-  "claude-opus-4-0",
-  "claude-sonnet-4-0",
-  "claude-opus-4-1",
+  "claude-opus-4-8",
+  "claude-opus-4-7",
+  "claude-opus-4-6",
+  "claude-sonnet-5",
+  "claude-sonnet-4-6",
   "claude-haiku-4-5",
   "claude-opus-4-5",
   "claude-sonnet-4-5",
 ] as const;
 
-// Max output tokens for each model
+// Max output tokens per request (all current models support 64K when streaming)
 const MODEL_MAX_TOKENS: Record<string, number> = {
-  "claude-3-haiku-20240307": 4096,
-  "claude-3-5-haiku-latest": 8192,
-  "claude-opus-4-0": 32768,
-  "claude-sonnet-4-0": 64000,
-  "claude-opus-4-1": 32768,
+  "claude-opus-4-8": 64000,
+  "claude-opus-4-7": 64000,
+  "claude-opus-4-6": 64000,
+  "claude-sonnet-5": 64000,
+  "claude-sonnet-4-6": 64000,
   "claude-haiku-4-5": 64000,
   "claude-opus-4-5": 64000,
   "claude-sonnet-4-5": 64000,
@@ -31,7 +31,7 @@ export class AnthropicProvider implements Provider {
   private client: Anthropic;
   private model: string;
 
-  constructor(model: string = "claude-3-5-haiku-latest", apiKey?: string) {
+  constructor(model: string = "claude-opus-4-8", apiKey?: string) {
     // Validate model is in allowed list
     if (!ANTHROPIC_MODELS.includes(model as any)) {
       throw new Error(

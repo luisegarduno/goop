@@ -88,7 +88,7 @@ export async function createTestSession(db: any, overrides: any = {}) {
       title: "Test Session",
       workingDirectory: "/tmp",
       provider: "anthropic",
-      model: "claude-3-5-haiku-latest",
+      model: "claude-haiku-4-5",
       ...overrides,
     })
     .returning();

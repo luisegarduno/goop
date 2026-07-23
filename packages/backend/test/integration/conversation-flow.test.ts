@@ -43,7 +43,7 @@ describe("Integration: Conversation Flow", () => {
       TEST_WORKING_DIR,
       "[TEST] Integration Test - Text Response",
       "anthropic",
-      "claude-3-5-haiku-latest"
+      "claude-haiku-4-5"
     );
 
     expect(session.id).toBeDefined();
@@ -98,7 +98,7 @@ describe("Integration: Conversation Flow", () => {
       TEST_WORKING_DIR,
       "[TEST] Integration Test - Tool Execution",
       "anthropic",
-      "claude-3-5-haiku-latest"
+      "claude-haiku-4-5"
     );
 
     createdSessionIds.push(session.id); // Track for cleanup

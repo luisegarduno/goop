@@ -41,7 +41,7 @@ describe("Integration: Session Lifecycle", () => {
       TEST_WORKING_DIR,
       "Lifecycle Test",
       "anthropic",
-      "claude-3-5-haiku-latest"
+      "claude-haiku-4-5"
     );
 
     expect(created.id).toBeDefined();
@@ -70,7 +70,7 @@ describe("Integration: Session Lifecycle", () => {
       TEST_WORKING_DIR,
       "Session 1",
       "anthropic",
-      "claude-3-5-haiku-latest"
+      "claude-haiku-4-5"
     );
     const session2 = await createSession(
       TEST_WORKING_DIR,
@@ -91,7 +91,7 @@ describe("Integration: Session Lifecycle", () => {
       TEST_WORKING_DIR,
       "Provider Change Test",
       "anthropic",
-      "claude-3-5-haiku-latest"
+      "claude-haiku-4-5"
     );
 
     // Track for cleanup
