@@ -8,6 +8,7 @@ export const apiRoutes = new Hono();
 import { SessionManager } from "../session/index";
 import { formatSSE } from "../streaming/index";
 import type { Provider } from "../providers/base";
+import type { AgentProvider } from "../providers/agent/types";
 
 // Get available providers
 apiRoutes.get("/providers", async (c) => {
@@ -19,11 +20,25 @@ apiRoutes.get("/providers", async (c) => {
 apiRoutes.get("/providers/:name/models", async (c) => {
   const providerName = c.req.param("name");
 
-  if (providerName !== "anthropic" && providerName !== "openai") {
+  if (
+    providerName !== "anthropic" &&
+    providerName !== "openai" &&
+    providerName !== "claude-code" &&
+    providerName !== "codex"
+  ) {
     return c.json({ error: "Unknown provider" }, 400);
   }
 
-  // Now safe to use as "anthropic" | "openai"
+  if (providerName === "claude-code") {
+    const { CLAUDE_CODE_MODELS } = await import("../providers/agent/claude-code");
+    return c.json({ models: CLAUDE_CODE_MODELS });
+  }
+
+  if (providerName === "codex") {
+    const { CODEX_MODELS } = await import("../providers/agent/codex");
+    return c.json({ models: CODEX_MODELS });
+  }
+
   if (providerName === "anthropic") {
     const { ANTHROPIC_MODELS } = await import("../providers/anthropic");
     return c.json({ models: ANTHROPIC_MODELS });
@@ -63,6 +78,40 @@ apiRoutes.get("/providers/:name/models", async (c) => {
   }
 });
 
+// Auth status for a provider.
+// API-key providers report whether a key is configured in the environment;
+// subscription providers (claude-code, codex) report whether the user is
+// logged in via the corresponding CLI.
+apiRoutes.get("/providers/:name/status", async (c) => {
+  const providerName = c.req.param("name");
+
+  if (providerName === "claude-code" || providerName === "codex") {
+    const { claudeCodeAuthStatus, codexAuthStatus } = await import(
+      "../utils/agent-auth"
+    );
+    const status =
+      providerName === "claude-code" ? claudeCodeAuthStatus() : codexAuthStatus();
+    return c.json(status);
+  }
+
+  if (providerName === "anthropic" || providerName === "openai") {
+    const envKey =
+      providerName === "anthropic"
+        ? process.env.ANTHROPIC_API_KEY
+        : process.env.OPENAI_API_KEY;
+    return c.json({
+      authType: "api_key",
+      authenticated: !!envKey,
+      method: envKey ? "env" : null,
+      detail: envKey
+        ? `${providerName.toUpperCase()}_API_KEY is configured in .env`
+        : `${providerName.toUpperCase()}_API_KEY is not configured`,
+    });
+  }
+
+  return c.json({ error: "Unknown provider" }, 400);
+});
+
 // Validate API key for a provider
 apiRoutes.post("/providers/validate", async (c) => {
   const body = await c.req.json();
@@ -94,6 +143,11 @@ apiRoutes.post("/providers/validate", async (c) => {
 // Returns a masked version (e.g., "sk-ant-***...***xyz") for security
 apiRoutes.get("/providers/:name/api-key", async (c) => {
   const providerName = c.req.param("name");
+
+  // Subscription providers don't use API keys
+  if (providerName === "claude-code" || providerName === "codex") {
+    return c.json({ apiKey: null, isConfigured: false });
+  }
 
   if (providerName !== "anthropic" && providerName !== "openai") {
     return c.json({ error: "Unknown provider" }, 400);
@@ -128,7 +182,9 @@ apiRoutes.post("/sessions", async (c) => {
     .object({
       title: z.string().default("New Conversation"),
       workingDirectory: z.string().min(1, "Working directory is required"),
-      provider: z.enum(["anthropic", "openai"]).default("anthropic"),
+      provider: z
+        .enum(["anthropic", "openai", "claude-code", "codex"])
+        .default("anthropic"),
       model: z.string().min(1, "Model is required"),
       apiKey: z.string().optional(), // Optional for validation
     })
@@ -145,8 +201,8 @@ apiRoutes.post("/sessions", async (c) => {
     );
   }
 
-  // Validate API key if provided
-  if (apiKey) {
+  // Validate API key if provided (subscription providers don't use one)
+  if (apiKey && (provider === "anthropic" || provider === "openai")) {
     try {
       const { validateProviderApiKey } = await import("../utils/validation");
       await validateProviderApiKey(provider, apiKey);
@@ -220,7 +276,7 @@ apiRoutes.patch("/sessions/:id", async (c) => {
     .object({
       title: z.string().optional(),
       workingDirectory: z.string().optional(),
-      provider: z.enum(["anthropic", "openai"]).optional(),
+      provider: z.enum(["anthropic", "openai", "claude-code", "codex"]).optional(),
       model: z.string().optional(),
       apiKey: z.string().optional(),
     })
@@ -248,25 +304,26 @@ apiRoutes.patch("/sessions/:id", async (c) => {
     return c.json({ error: "Session not found" }, 404);
   }
 
-  // Validate API key if provided
+  // Validate API key if provided (subscription providers don't use one)
   if (apiKey) {
-    const targetProvider =
-      provider || (currentSession.provider as "anthropic" | "openai");
-    try {
-      const { validateProviderApiKey } = await import("../utils/validation");
-      await validateProviderApiKey(targetProvider, apiKey);
-    } catch (error: any) {
-      return c.json(
-        { error: `Invalid ${targetProvider} API key: ${error.message}` },
-        400
-      );
+    const targetProvider = provider || currentSession.provider;
+    if (targetProvider === "anthropic" || targetProvider === "openai") {
+      try {
+        const { validateProviderApiKey } = await import("../utils/validation");
+        await validateProviderApiKey(targetProvider, apiKey);
+      } catch (error: any) {
+        return c.json(
+          { error: `Invalid ${targetProvider} API key: ${error.message}` },
+          400
+        );
+      }
     }
   }
 
   // Validate model is valid for the provider (current or new)
   if (model !== undefined) {
-    const targetProvider =
-      provider || (currentSession.provider as "anthropic" | "openai");
+    const targetProvider = (provider ||
+      currentSession.provider) as import("../providers/index").ProviderName;
 
     try {
       const { getProviderInfo } = await import("../providers/index");
@@ -316,6 +373,17 @@ apiRoutes.patch("/sessions/:id", async (c) => {
     updateData.workingDirectory = workingDirectory;
   if (provider !== undefined) updateData.provider = provider;
   if (model !== undefined) updateData.model = model;
+
+  // The native agent session (Claude Code / Codex) can't be resumed across a
+  // provider switch or a working directory change - drop it so the next turn
+  // starts fresh (with a recap of the stored history where applicable).
+  if (
+    providerChanged ||
+    (workingDirectory !== undefined &&
+      workingDirectory !== currentSession.workingDirectory)
+  ) {
+    updateData.agentSessionId = null;
+  }
 
   const [updatedSession] = await db
     .update(sessions)
@@ -395,21 +463,38 @@ apiRoutes.post("/sessions/:id/messages", async (c) => {
     return c.json({ error: "Session not found" }, 404);
   }
 
+  // Subscription providers need a CLI login instead of an API key - surface a
+  // clear error before opening the SSE stream.
+  if (session.provider === "claude-code" || session.provider === "codex") {
+    const { claudeCodeAuthStatus, codexAuthStatus } = await import(
+      "../utils/agent-auth"
+    );
+    const status =
+      session.provider === "claude-code"
+        ? claudeCodeAuthStatus()
+        : codexAuthStatus();
+    if (!status.authenticated) {
+      return c.json({ error: `${status.detail} ${status.hint ?? ""}`.trim() }, 400);
+    }
+  }
+
   // Create provider instance based on session settings
-  let provider: Provider;
+  let provider: Provider | AgentProvider;
   try {
     const { createProvider } = await import("../providers/index");
     provider = createProvider(
-      session.provider as "anthropic" | "openai",
+      session.provider as import("../providers/index").ProviderName,
       session.model
     );
   } catch (error: any) {
     console.error("[API] Failed to create provider:", error);
+    const keyHint =
+      session.provider === "anthropic" || session.provider === "openai"
+        ? ` Ensure ${session.provider.toUpperCase()}_API_KEY is set in .env`
+        : "";
     return c.json(
       {
-        error: `Failed to initialize ${session.provider} provider: ${
-          error.message
-        }. Ensure ${session.provider.toUpperCase()}_API_KEY is set in .env`,
+        error: `Failed to initialize ${session.provider} provider: ${error.message}.${keyHint}`,
       },
       500
     );
@@ -455,8 +540,13 @@ apiRoutes.post("/sessions/:id/messages", async (c) => {
       } catch (error: any) {
         console.error("Error in SSE stream:", error);
 
-        // Try to send error event to client
+        // Surface the error in the transcript, then close the message
         try {
+          const errorText = formatSSE({
+            type: "message.delta",
+            text: `\n⚠ ${error?.message || "Something went wrong"}`,
+          });
+          controller.enqueue(encoder.encode(errorText));
           const errorEvent = formatSSE({
             type: "message.done",
             messageId: "",

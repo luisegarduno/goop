@@ -70,7 +70,7 @@ describe("Database Schema", () => {
         .returning();
 
       expect(session.provider).toBe("anthropic");
-      expect(session.model).toBe("claude-3-5-haiku-latest");
+      expect(session.model).toBe("claude-opus-4-8");
     });
 
     test("sets timestamps automatically", async () => {

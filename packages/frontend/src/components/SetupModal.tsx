@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
-import { API_BASE, createSession } from "../api/client";
+import {
+  API_BASE,
+  createSession,
+  getProviderStatus,
+  type ProviderInfo,
+  type ProviderStatus,
+} from "../api/client";
 
 interface SetupModalProps {
   onComplete: (sessionId: string, workingDirectory: string, provider: string, model: string) => void;
-}
-
-interface Provider {
-  name: string;
-  displayName: string;
 }
 
 export function SetupModal({ onComplete }: SetupModalProps) {
@@ -18,7 +19,7 @@ export function SetupModal({ onComplete }: SetupModalProps) {
   const [apiKey, setApiKey] = useState<string>("");
   const [maskedKey, setMaskedKey] = useState<string | null>(null);
   const [keyConfiguredInEnv, setKeyConfiguredInEnv] = useState(false);
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [models, setModels] = useState<string[]>([]);
   const [validatingKey, setValidatingKey] = useState(false);
   const [keyValidated, setKeyValidated] = useState(false);
@@ -26,6 +27,22 @@ export function SetupModal({ onComplete }: SetupModalProps) {
   const [loadingModels, setLoadingModels] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>("");
+  const [authStatus, setAuthStatus] = useState<ProviderStatus | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+
+  const selectedProvider = providers.find((p) => p.name === provider);
+  const isSubscription = selectedProvider?.authType === "subscription";
+
+  const refreshAuthStatus = (providerName: string) => {
+    setCheckingStatus(true);
+    getProviderStatus(providerName)
+      .then((status) => setAuthStatus(status))
+      .catch((error) => {
+        console.error("Failed to fetch provider status:", error);
+        setAuthStatus(null);
+      })
+      .finally(() => setCheckingStatus(false));
+  };
 
   // Fetch available providers on mount
   useEffect(() => {
@@ -43,13 +60,14 @@ export function SetupModal({ onComplete }: SetupModalProps) {
       });
   }, []);
 
-  // Fetch models and API key when provider changes
+  // Fetch models and auth info when provider changes
   useEffect(() => {
     if (!provider) return;
 
     setLoadingModels(true);
     setModel(""); // Reset model when provider changes
     setKeyValidated(false); // Reset validation when provider changes
+    setAuthStatus(null);
 
     // Fetch models
     fetch(`${API_BASE}/providers/${provider}/models`)
@@ -67,6 +85,16 @@ export function SetupModal({ onComplete }: SetupModalProps) {
         setLoadingModels(false);
       });
 
+    const providerInfo = providers.find((p) => p.name === provider);
+    if (providerInfo?.authType === "subscription") {
+      // Subscription providers use a CLI login instead of an API key
+      setMaskedKey(null);
+      setKeyConfiguredInEnv(false);
+      setApiKey("");
+      refreshAuthStatus(provider);
+      return;
+    }
+
     // Fetch masked API key info from .env (for display only, not used for authentication)
     fetch(`${API_BASE}/providers/${provider}/api-key`)
       .then((res) => res.json())
@@ -80,7 +108,7 @@ export function SetupModal({ onComplete }: SetupModalProps) {
         setMaskedKey(null);
         setKeyConfiguredInEnv(false);
       });
-  }, [provider]);
+  }, [provider, providers]);
 
   const handleValidateKey = async () => {
     if (!apiKey.trim()) {
@@ -136,16 +164,26 @@ export function SetupModal({ onComplete }: SetupModalProps) {
       return;
     }
 
-    // If user entered a custom API key, it must be validated
-    if (apiKey.trim() && !keyValidated) {
-      setValidationError("Please validate your API key first");
-      return;
-    }
+    if (isSubscription) {
+      // Subscription providers need a CLI login instead of an API key
+      if (!authStatus?.authenticated) {
+        setValidationError(
+          authStatus?.hint || "Log in with the provider's CLI first, then re-check."
+        );
+        return;
+      }
+    } else {
+      // If user entered a custom API key, it must be validated
+      if (apiKey.trim() && !keyValidated) {
+        setValidationError("Please validate your API key first");
+        return;
+      }
 
-    // If no custom key entered, check if one is configured in .env
-    if (!apiKey.trim() && !keyConfiguredInEnv) {
-      setValidationError("Please enter and validate an API key, or configure one in your .env file");
-      return;
+      // If no custom key entered, check if one is configured in .env
+      if (!apiKey.trim() && !keyConfiguredInEnv) {
+        setValidationError("Please enter and validate an API key, or configure one in your .env file");
+        return;
+      }
     }
 
     // Create session
@@ -159,7 +197,7 @@ export function SetupModal({ onComplete }: SetupModalProps) {
         title.trim(),
         provider,
         model,
-        apiKey.trim()
+        isSubscription ? undefined : apiKey.trim()
       );
 
       // Success - notify parent
@@ -248,6 +286,11 @@ export function SetupModal({ onComplete }: SetupModalProps) {
                 </option>
               ))}
             </select>
+            {selectedProvider?.description && (
+              <p className="text-gray-500 text-xs mt-2">
+                {selectedProvider.description}
+              </p>
+            )}
           </div>
 
           {/* Model Selection */}
@@ -276,7 +319,45 @@ export function SetupModal({ onComplete }: SetupModalProps) {
             </select>
           </div>
 
+          {/* Subscription login status (Claude Code / Codex) */}
+          {isSubscription && (
+            <div className="mb-4">
+              <label className="block text-gray-300 mb-2 text-sm">
+                Subscription Login:
+              </label>
+              {checkingStatus ? (
+                <p className="text-gray-500 text-sm">Checking login status...</p>
+              ) : authStatus?.authenticated ? (
+                <p className="text-green-400 text-sm flex items-start gap-1">
+                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{authStatus.detail}</span>
+                </p>
+              ) : (
+                <div className="text-yellow-400 text-sm">
+                  <p>{authStatus?.detail || "Login status unknown."}</p>
+                  {authStatus?.hint && (
+                    <p className="text-gray-400 text-xs mt-1">{authStatus.hint}</p>
+                  )}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => refreshAuthStatus(provider)}
+                disabled={checkingStatus}
+                className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors disabled:opacity-50"
+              >
+                {checkingStatus ? "Checking..." : "Re-check"}
+              </button>
+              {validationError && (
+                <p className="text-red-400 text-xs mt-2">{validationError}</p>
+              )}
+            </div>
+          )}
+
           {/* API Key */}
+          {!isSubscription && (
           <div className="mb-4">
             <label
               htmlFor="apiKey"
@@ -341,6 +422,7 @@ export function SetupModal({ onComplete }: SetupModalProps) {
               </p>
             )}
           </div>
+          )}
 
           {/* Submit Error Display */}
           {submitError && (
@@ -359,10 +441,15 @@ export function SetupModal({ onComplete }: SetupModalProps) {
                 !workingDirectory.trim() ||
                 !title.trim() ||
                 !model ||
-                // Only require validation if user entered a custom key
-                (apiKey.trim() && !keyValidated) ||
-                // Require either a validated custom key OR an .env key
-                (!apiKey.trim() && !keyConfiguredInEnv)
+                (isSubscription
+                  ? // Subscription providers need a CLI login
+                    !authStatus?.authenticated
+                  : // Only require validation if user entered a custom key;
+                    // otherwise require an .env key
+                    Boolean(
+                      (apiKey.trim() && !keyValidated) ||
+                        (!apiKey.trim() && !keyConfiguredInEnv)
+                    ))
               }
               className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >

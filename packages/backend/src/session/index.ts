@@ -3,12 +3,14 @@ import { sessions, messages, messageParts } from "../db/schema";
 import { eq, asc } from "drizzle-orm";
 import { getToolDefinitions, executeTool } from "../tools/index";
 import { ProviderMessage, Provider } from "../providers/base";
+import { AgentProvider, isAgentProvider } from "../providers/agent/types";
+import { buildRecapPrompt } from "../providers/agent/recap";
 import { SSEEvent } from "../streaming/index";
 
 export class SessionManager {
-  private provider: Provider;
+  private provider: Provider | AgentProvider;
 
-  constructor(provider: Provider) {
+  constructor(provider: Provider | AgentProvider) {
     this.provider = provider;
   }
 
@@ -17,6 +19,20 @@ export class SessionManager {
     userContent: string,
     workingDir: string
   ): AsyncGenerator<SSEEvent> {
+    if (isAgentProvider(this.provider)) {
+      yield* this.processAgentMessage(
+        sessionId,
+        userContent,
+        workingDir,
+        this.provider
+      );
+      return;
+    }
+
+    // Load conversation history (before storing the new message, so it isn't
+    // included twice)
+    const history = await this.loadHistory(sessionId);
+
     // Store user message
     const [userMessage] = await db
       .insert(messages)
@@ -33,9 +49,6 @@ export class SessionManager {
       content: { text: userContent },
       order: 0,
     });
-
-    // Load conversation history
-    const history = await this.loadHistory(sessionId);
 
     // Add current user message
     history.push({
@@ -229,6 +242,159 @@ export class SessionManager {
     await saveAccumulatedText();
 
     // Update session timestamp
+    await db
+      .update(sessions)
+      .set({ updatedAt: new Date() })
+      .where(eq(sessions.id, sessionId));
+
+    yield { type: "message.done", messageId: currentAssistantMessage.id };
+  }
+
+  /**
+   * Turn processing for agent providers (Claude Code / Codex). The runtime
+   * executes its own tools and keeps its own history; goop mirrors the events
+   * into the DB (same part shapes as the classic flow) and the SSE stream.
+   */
+  private async *processAgentMessage(
+    sessionId: string,
+    userContent: string,
+    workingDir: string,
+    provider: AgentProvider
+  ): AsyncGenerator<SSEEvent> {
+    const session = await db.query.sessions.findFirst({
+      where: eq(sessions.id, sessionId),
+    });
+    let agentSessionId = session?.agentSessionId ?? null;
+
+    // Recap covers the case where the runtime's native session is gone (or was
+    // never created) but goop still has history - e.g. after a working
+    // directory change.
+    const priorHistory = await this.loadHistory(sessionId);
+    const recapPrompt = buildRecapPrompt(priorHistory);
+
+    // Store user message
+    const [userMessage] = await db
+      .insert(messages)
+      .values({ sessionId, role: "user" })
+      .returning();
+
+    if (!userMessage) {
+      throw new Error("Failed to create user message");
+    }
+
+    await db.insert(messageParts).values({
+      messageId: userMessage.id,
+      type: "text",
+      content: { text: userContent },
+      order: 0,
+    });
+
+    // Create assistant message
+    const [assistantMessage] = await db
+      .insert(messages)
+      .values({ sessionId, role: "assistant" })
+      .returning();
+
+    if (!assistantMessage) {
+      throw new Error("Failed to create assistant message");
+    }
+
+    let currentAssistantMessage = assistantMessage;
+    let partOrder = 0;
+    let accumulatedText = "";
+
+    const saveAccumulatedText = async () => {
+      if (accumulatedText) {
+        await db.insert(messageParts).values({
+          messageId: currentAssistantMessage.id,
+          type: "text",
+          content: { text: accumulatedText },
+          order: partOrder++,
+        });
+        accumulatedText = "";
+      }
+    };
+
+    yield { type: "message.start", messageId: currentAssistantMessage.id };
+
+    for await (const event of provider.runTurn({
+      prompt: userContent,
+      workingDir,
+      resumeSessionId: agentSessionId,
+      recapPrompt,
+    })) {
+      if (event.type === "session") {
+        if (event.agentSessionId !== agentSessionId) {
+          agentSessionId = event.agentSessionId;
+          await db
+            .update(sessions)
+            .set({ agentSessionId })
+            .where(eq(sessions.id, sessionId));
+        }
+      } else if (event.type === "text") {
+        accumulatedText += event.text;
+        yield { type: "message.delta", text: event.text };
+      } else if (event.type === "tool_use") {
+        await saveAccumulatedText();
+
+        await db.insert(messageParts).values({
+          messageId: currentAssistantMessage.id,
+          type: "tool_use",
+          content: { id: event.id, name: event.name, input: event.input },
+          order: partOrder++,
+        });
+
+        yield {
+          type: "tool.start",
+          toolName: event.name,
+          toolId: event.id,
+          input: event.input,
+        };
+      } else if (event.type === "tool_result") {
+        await saveAccumulatedText();
+
+        const [toolResultMessage] = await db
+          .insert(messages)
+          .values({ sessionId, role: "user" })
+          .returning();
+
+        if (!toolResultMessage) {
+          throw new Error("Failed to create tool result message");
+        }
+
+        await db.insert(messageParts).values({
+          messageId: toolResultMessage.id,
+          type: "tool_result",
+          content: {
+            tool_use_id: event.toolUseId,
+            content: event.result,
+            ...(event.isError ? { is_error: true } : {}),
+          },
+          order: 0,
+        });
+
+        yield { type: "tool.result", toolId: event.toolUseId, result: event.result };
+
+        // Start a new assistant message for whatever the agent does next,
+        // mirroring the classic flow so the frontend groups output correctly.
+        const [nextAssistantMessage] = await db
+          .insert(messages)
+          .values({ sessionId, role: "assistant" })
+          .returning();
+
+        if (!nextAssistantMessage) {
+          throw new Error("Failed to create next assistant message");
+        }
+
+        currentAssistantMessage = nextAssistantMessage;
+        partOrder = 0;
+
+        yield { type: "message.start", messageId: nextAssistantMessage.id };
+      }
+    }
+
+    await saveAccumulatedText();
+
     await db
       .update(sessions)
       .set({ updatedAt: new Date() })

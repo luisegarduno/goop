@@ -1,10 +1,11 @@
-export const API_BASE = "http://localhost:3001/api";
+export const API_BASE =
+  import.meta.env.VITE_API_BASE || "http://localhost:3001/api";
 
 export async function createSession(
   workingDirectory: string,
   title: string = "New Conversation",
   provider: string = "anthropic",
-  model: string = "claude-3-5-haiku-latest",
+  model: string = "claude-opus-4-8",
   apiKey?: string
 ): Promise<SessionInfo> {
   const res = await fetch(`${API_BASE}/sessions`, {
@@ -87,6 +88,33 @@ export interface SessionInfo {
   model: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProviderInfo {
+  name: string;
+  displayName: string;
+  models: string[];
+  /** "api_key" providers take a key; "subscription" providers use a CLI login. */
+  authType: "api_key" | "subscription";
+  description?: string;
+}
+
+export interface ProviderStatus {
+  authType: "api_key" | "subscription";
+  authenticated: boolean;
+  method: string | null;
+  detail: string;
+  hint?: string;
+}
+
+export async function getProviderStatus(
+  provider: string
+): Promise<ProviderStatus> {
+  const res = await fetch(`${API_BASE}/providers/${provider}/status`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch provider status: ${res.status}`);
+  }
+  return res.json();
 }
 
 export async function getAllSessions(): Promise<SessionInfo[]> {

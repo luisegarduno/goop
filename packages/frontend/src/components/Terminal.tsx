@@ -12,6 +12,18 @@ function truncateString(str: string, maxLength: number): string {
   return str.slice(0, maxLength) + "...";
 }
 
+/**
+ * Picks a short human-readable detail from a tool's input (file path, shell
+ * command, search pattern) for display next to the tool name.
+ */
+function toolDetail(input?: Record<string, unknown>): string | null {
+  if (!input) return null;
+  const candidate =
+    input.file_path ?? input.path ?? input.command ?? input.pattern ?? input.query;
+  if (typeof candidate !== "string" || !candidate) return null;
+  return truncateString(candidate, 80);
+}
+
 export function Terminal() {
   const { messages, currentText, currentParts, isStreaming } = useSessionStore();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -52,6 +64,9 @@ export function Terminal() {
                 {part.type === "tool_use" && (
                   <div className="text-terminal-tool">
                     🔧 Using tool: {part.name}
+                    {toolDetail(part.input) && (
+                      <span className="opacity-60"> — {toolDetail(part.input)}</span>
+                    )}
                   </div>
                 )}
                 {part.type === "tool_result" && (
@@ -75,6 +90,9 @@ export function Terminal() {
               {part.type === "tool_use" && (
                 <div className="text-terminal-tool">
                   🔧 Using tool: {part.name}
+                  {toolDetail(part.input) && (
+                    <span className="opacity-60"> — {toolDetail(part.input)}</span>
+                  )}
                 </div>
               )}
               {part.type === "tool_result" && (

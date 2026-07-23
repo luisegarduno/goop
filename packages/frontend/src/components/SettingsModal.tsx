@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { API_BASE } from "../api/client";
+import {
+  API_BASE,
+  getProviderStatus,
+  type ProviderInfo,
+  type ProviderStatus,
+} from "../api/client";
 
 interface SettingsModalProps {
   currentProvider: string;
@@ -12,11 +17,6 @@ interface SettingsModalProps {
     apiKey: string,
     workingDirectory: string
   ) => Promise<void>;
-}
-
-interface Provider {
-  name: string;
-  displayName: string;
 }
 
 export function SettingsModal({
@@ -34,7 +34,7 @@ export function SettingsModal({
   const [apiKey, setApiKey] = useState<string>("");
   const [maskedKey, setMaskedKey] = useState<string | null>(null);
   const [keyConfiguredInEnv, setKeyConfiguredInEnv] = useState(false);
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [models, setModels] = useState<string[]>([]);
   const [validatingKey, setValidatingKey] = useState(false);
   const [keyValidated, setKeyValidated] = useState(false);
@@ -42,6 +42,22 @@ export function SettingsModal({
   const [loadingModels, setLoadingModels] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string>("");
+  const [authStatus, setAuthStatus] = useState<ProviderStatus | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+
+  const selectedProvider = providers.find((p) => p.name === provider);
+  const isSubscription = selectedProvider?.authType === "subscription";
+
+  const refreshAuthStatus = (providerName: string) => {
+    setCheckingStatus(true);
+    getProviderStatus(providerName)
+      .then((status) => setAuthStatus(status))
+      .catch((error) => {
+        console.error("Failed to fetch provider status:", error);
+        setAuthStatus(null);
+      })
+      .finally(() => setCheckingStatus(false));
+  };
 
   // Fetch available providers on mount
   useEffect(() => {
@@ -55,7 +71,7 @@ export function SettingsModal({
       });
   }, []);
 
-  // Fetch models and API key when provider changes
+  // Fetch models and auth info when provider changes
   useEffect(() => {
     if (!provider) return;
 
@@ -77,6 +93,17 @@ export function SettingsModal({
         setLoadingModels(false);
       });
 
+    const providerInfo = providers.find((p) => p.name === provider);
+    if (providerInfo?.authType === "subscription") {
+      // Subscription providers use a CLI login instead of an API key
+      setMaskedKey(null);
+      setKeyConfiguredInEnv(false);
+      setApiKey("");
+      refreshAuthStatus(provider);
+      return;
+    }
+    setAuthStatus(null);
+
     // Fetch masked API key info from .env (for display only, not used for authentication)
     fetch(`${API_BASE}/providers/${provider}/api-key`)
       .then((res) => res.json())
@@ -91,7 +118,7 @@ export function SettingsModal({
         setMaskedKey(null);
         setKeyConfiguredInEnv(false);
       });
-  }, [provider, model]);
+  }, [provider, model, providers]);
 
   const handleValidateKey = async () => {
     if (!apiKey.trim()) {
@@ -142,16 +169,26 @@ export function SettingsModal({
       return;
     }
 
-    // If user entered a custom API key, it must be validated
-    if (apiKey.trim() && !keyValidated) {
-      setValidationError("Please validate your API key first");
-      return;
-    }
+    if (isSubscription) {
+      // Subscription providers need a CLI login instead of an API key
+      if (!authStatus?.authenticated) {
+        setValidationError(
+          authStatus?.hint || "Log in with the provider's CLI first, then re-check."
+        );
+        return;
+      }
+    } else {
+      // If user entered a custom API key, it must be validated
+      if (apiKey.trim() && !keyValidated) {
+        setValidationError("Please validate your API key first");
+        return;
+      }
 
-    // If no custom key entered, check if one is configured in .env
-    if (!apiKey.trim() && !keyConfiguredInEnv) {
-      setValidationError("Please enter and validate an API key, or configure one in your .env file");
-      return;
+      // If no custom key entered, check if one is configured in .env
+      if (!apiKey.trim() && !keyConfiguredInEnv) {
+        setValidationError("Please enter and validate an API key, or configure one in your .env file");
+        return;
+      }
     }
 
     setSaving(true);
@@ -159,7 +196,12 @@ export function SettingsModal({
     setValidationError("");
 
     try {
-      await onSave(provider, model, apiKey.trim(), workingDirectory.trim());
+      await onSave(
+        provider,
+        model,
+        isSubscription ? "" : apiKey.trim(),
+        workingDirectory.trim()
+      );
       onClose();
     } catch (error) {
       console.error("Failed to save settings:", error);
@@ -227,6 +269,11 @@ export function SettingsModal({
                 </option>
               ))}
             </select>
+            {selectedProvider?.description && (
+              <p className="text-gray-500 text-xs mt-2">
+                {selectedProvider.description}
+              </p>
+            )}
             {provider !== currentProvider && (
               <p className="text-yellow-400 text-xs mt-2 flex items-start gap-1">
                 <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -263,7 +310,45 @@ export function SettingsModal({
             </select>
           </div>
 
+          {/* Subscription login status (Claude Code / Codex) */}
+          {isSubscription && (
+            <div className="mb-4">
+              <label className="block text-gray-300 mb-2 text-sm">
+                Subscription Login:
+              </label>
+              {checkingStatus ? (
+                <p className="text-gray-500 text-sm">Checking login status...</p>
+              ) : authStatus?.authenticated ? (
+                <p className="text-green-400 text-sm flex items-start gap-1">
+                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{authStatus.detail}</span>
+                </p>
+              ) : (
+                <div className="text-yellow-400 text-sm">
+                  <p>{authStatus?.detail || "Login status unknown."}</p>
+                  {authStatus?.hint && (
+                    <p className="text-gray-400 text-xs mt-1">{authStatus.hint}</p>
+                  )}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => refreshAuthStatus(provider)}
+                disabled={checkingStatus}
+                className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors disabled:opacity-50"
+              >
+                {checkingStatus ? "Checking..." : "Re-check"}
+              </button>
+              {validationError && (
+                <p className="text-red-400 text-xs mt-2">{validationError}</p>
+              )}
+            </div>
+          )}
+
           {/* API Key */}
+          {!isSubscription && (
           <div className="mb-4">
             <label
               htmlFor="apiKey"
@@ -328,6 +413,7 @@ export function SettingsModal({
               </p>
             )}
           </div>
+          )}
 
           {/* Working Directory */}
           <div className="mb-4">
@@ -373,10 +459,15 @@ export function SettingsModal({
                 saving ||
                 loadingModels ||
                 !workingDirectory.trim() ||
-                // Only require validation if user entered a custom key
-                (apiKey.trim() && !keyValidated) ||
-                // Require either a validated custom key OR an .env key
-                (!apiKey.trim() && !keyConfiguredInEnv)
+                (isSubscription
+                  ? // Subscription providers need a CLI login
+                    !authStatus?.authenticated
+                  : // Only require validation if user entered a custom key;
+                    // otherwise require an .env key
+                    Boolean(
+                      (apiKey.trim() && !keyValidated) ||
+                        (!apiKey.trim() && !keyConfiguredInEnv)
+                    ))
               }
               className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >

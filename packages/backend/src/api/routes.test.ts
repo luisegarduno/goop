@@ -258,6 +258,169 @@ describe("Provider Endpoints", () => {
   });
 });
 
+describe("Subscription Provider Endpoints", () => {
+  test("GET /providers - includes subscription providers with authType", async () => {
+    const res = await app.request("/api/providers");
+    expect(res.status).toBe(200);
+
+    const providers = (await res.json()) as any[];
+    const names = providers.map((p) => p.name);
+    expect(names).toContain("claude-code");
+    expect(names).toContain("codex");
+
+    const claudeCode = providers.find((p) => p.name === "claude-code");
+    expect(claudeCode.authType).toBe("subscription");
+    const anthropic = providers.find((p) => p.name === "anthropic");
+    expect(anthropic.authType).toBe("api_key");
+  });
+
+  test("GET /providers/claude-code/models - returns model aliases", async () => {
+    const res = await app.request("/api/providers/claude-code/models");
+    expect(res.status).toBe(200);
+
+    const data = (await res.json()) as any;
+    expect(data.models).toContain("sonnet");
+  });
+
+  test("GET /providers/codex/models - returns default entry", async () => {
+    const res = await app.request("/api/providers/codex/models");
+    expect(res.status).toBe(200);
+
+    const data = (await res.json()) as any;
+    expect(data.models).toContain("default");
+  });
+
+  // Status values are machine-dependent (they reflect real CLI logins), so
+  // assert the response shape rather than a specific login state.
+  test("GET /providers/claude-code/status - reports subscription status shape", async () => {
+    const res = await app.request("/api/providers/claude-code/status");
+    expect(res.status).toBe(200);
+
+    const status = (await res.json()) as any;
+    expect(status.authType).toBe("subscription");
+    expect(typeof status.authenticated).toBe("boolean");
+    expect(typeof status.detail).toBe("string");
+  });
+
+  test("GET /providers/codex/status - reports subscription status shape", async () => {
+    const res = await app.request("/api/providers/codex/status");
+    expect(res.status).toBe(200);
+
+    const status = (await res.json()) as any;
+    expect(status.authType).toBe("subscription");
+    expect(typeof status.authenticated).toBe("boolean");
+    if (!status.authenticated) {
+      expect(status.hint).toContain("codex login");
+    }
+  });
+
+  test("GET /providers/anthropic/status - reports env API key", async () => {
+    const res = await app.request("/api/providers/anthropic/status");
+    expect(res.status).toBe(200);
+
+    const status = (await res.json()) as any;
+    expect(status.authType).toBe("api_key");
+    expect(status.authenticated).toBe(true);
+  });
+
+  test("GET /providers/:name/api-key - subscription providers report no key", async () => {
+    const res = await app.request("/api/providers/claude-code/api-key");
+    expect(res.status).toBe(200);
+
+    const result = (await res.json()) as any;
+    expect(result.isConfigured).toBe(false);
+  });
+
+  test("POST /sessions - creates claude-code session without an API key", async () => {
+    const res = await app.request("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Subscription Session",
+        workingDirectory: "/tmp",
+        provider: "claude-code",
+        model: "sonnet",
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const session = (await res.json()) as any;
+    expect(session.provider).toBe("claude-code");
+    expect(session.model).toBe("sonnet");
+    expect(session.agentSessionId).toBeNull();
+  });
+
+  test("POST /sessions - creates codex session without an API key", async () => {
+    const res = await app.request("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workingDirectory: "/tmp",
+        provider: "codex",
+        model: "default",
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const session = (await res.json()) as any;
+    expect(session.provider).toBe("codex");
+  });
+
+  test("PATCH /sessions/:id - clears agentSessionId when provider changes", async () => {
+    const session = await createTestSession(db, {
+      provider: "claude-code",
+      model: "sonnet",
+      agentSessionId: "native-session-1",
+    });
+
+    const res = await app.request(`/api/sessions/${session.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "codex", model: "default" }),
+    });
+
+    expect(res.status).toBe(200);
+    const updated = (await res.json()) as any;
+    expect(updated.agentSessionId).toBeNull();
+  });
+
+  test("PATCH /sessions/:id - clears agentSessionId when working directory changes", async () => {
+    const session = await createTestSession(db, {
+      provider: "claude-code",
+      model: "sonnet",
+      agentSessionId: "native-session-2",
+    });
+
+    const res = await app.request(`/api/sessions/${session.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workingDirectory: "/" }),
+    });
+
+    expect(res.status).toBe(200);
+    const updated = (await res.json()) as any;
+    expect(updated.agentSessionId).toBeNull();
+  });
+
+  test("PATCH /sessions/:id - keeps agentSessionId on unrelated updates", async () => {
+    const session = await createTestSession(db, {
+      provider: "claude-code",
+      model: "sonnet",
+      agentSessionId: "native-session-3",
+    });
+
+    const res = await app.request(`/api/sessions/${session.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Renamed" }),
+    });
+
+    expect(res.status).toBe(200);
+    const updated = (await res.json()) as any;
+    expect(updated.agentSessionId).toBe("native-session-3");
+  });
+});
+
 describe("Session Endpoints", () => {
   test("POST /sessions - creates new session with valid data", async () => {
     const res = await app.request("/api/sessions", {
