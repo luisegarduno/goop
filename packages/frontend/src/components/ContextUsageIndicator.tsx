@@ -21,49 +21,47 @@ function categoryColor(label: string): string {
  * `anthropic` provider; renders nothing when usage is unavailable.
  */
 export function ContextUsageIndicator() {
-  const { sessionId, provider, isStreaming } = useSessionStore();
+  // `provider` gates rendering in App (this only mounts for Anthropic-based
+  // providers, remounted via key={provider} on a switch), so the component
+  // itself only needs the session id and streaming state.
+  const { sessionId, isStreaming } = useSessionStore();
   const [usage, setUsage] = useState<ContextUsageResponse | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const wasStreaming = useRef(isStreaming);
 
-  const isSupportedProvider =
-    provider === "anthropic" || provider === "claude-code";
+  // Stable helper: setUsage runs inside a .then callback (never synchronously),
+  // so this is safe to call from effects under the React Compiler's
+  // set-state-in-effect rule. On error the last known usage is kept.
+  const refetch = useCallback((sid: string | null) => {
+    if (!sid) return;
+    getContextUsage(sid)
+      .then(setUsage)
+      .catch((error) =>
+        console.error("Failed to fetch context usage:", error)
+      );
+  }, []);
 
-  const fetchUsage = useCallback(async () => {
-    if (!sessionId || !isSupportedProvider) {
-      setUsage(null);
-      return;
-    }
-    try {
-      const result = await getContextUsage(sessionId);
-      setUsage(result);
-    } catch (error) {
-      console.error("Failed to fetch context usage:", error);
-      setUsage(null);
-    }
-  }, [sessionId, provider]);
-
-  // Fetch on session/provider change.
+  // Fetch on mount / session change.
   useEffect(() => {
-    fetchUsage();
-  }, [fetchUsage]);
+    refetch(sessionId);
+  }, [sessionId, refetch]);
 
   // Refetch after a turn completes (streaming true -> false), since the
   // conversation just grew.
   useEffect(() => {
     if (wasStreaming.current && !isStreaming) {
-      fetchUsage();
+      refetch(sessionId);
     }
     wasStreaming.current = isStreaming;
-  }, [isStreaming, fetchUsage]);
+  }, [isStreaming, sessionId, refetch]);
 
   // Refresh when the panel is opened.
   useEffect(() => {
     if (isOpen) {
-      fetchUsage();
+      refetch(sessionId);
     }
-  }, [isOpen, fetchUsage]);
+  }, [isOpen, sessionId, refetch]);
 
   // Close on outside click.
   useEffect(() => {
@@ -81,9 +79,8 @@ export function ContextUsageIndicator() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  // Nothing to show for unsupported providers or before the first fetch.
+  // Nothing to show until usage is available and supported for this provider.
   if (
-    !isSupportedProvider ||
     !usage ||
     !usage.supported ||
     usage.totalTokens === undefined ||

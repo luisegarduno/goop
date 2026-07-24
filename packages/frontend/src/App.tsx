@@ -212,9 +212,10 @@ function App() {
       {/* Navigation Buttons - Top Right Corner */}
       {sessionId && (
         <div className="absolute top-4 right-4 z-40 flex gap-2">
-          {/* Context window usage — Anthropic-based providers */}
+          {/* Context window usage — Anthropic-based providers.
+              key={provider} remounts (and refetches) on a provider switch. */}
           {(provider === "anthropic" || provider === "claude-code") && (
-            <ContextUsageIndicator />
+            <ContextUsageIndicator key={provider} />
           )}
           {/* New Session Button */}
           <button
