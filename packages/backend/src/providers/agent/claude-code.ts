@@ -15,6 +15,80 @@ const GOOP_TOOLSET = ["Read", "Write", "Edit", "Grep", "Glob"];
 
 const MAX_TURNS = 100;
 
+// Context window per Claude Code model alias. Used only as a fallback before a
+// turn has run (once a turn completes, the runtime reports the real window).
+const DEFAULT_CLAUDE_CODE_CONTEXT_WINDOW = 200_000;
+const CLAUDE_CODE_CONTEXT_WINDOWS: Record<string, number> = {
+  sonnet: 1_000_000,
+  opus: 1_000_000,
+  haiku: 200_000,
+};
+
+/** Fallback context window for a Claude Code model alias (sonnet/opus/haiku). */
+export function getClaudeCodeContextWindow(model?: string | null): number {
+  if (!model) return DEFAULT_CLAUDE_CODE_CONTEXT_WINDOW;
+  return CLAUDE_CODE_CONTEXT_WINDOWS[model] ?? DEFAULT_CLAUDE_CODE_CONTEXT_WINDOW;
+}
+
+/**
+ * Derive a single context-usage number from a Claude Agent SDK `result`
+ * message. Prefers the per-model `modelUsage` (which also carries the real
+ * `contextWindow`), falling back to the aggregate `usage`. The reported total
+ * is the full prompt the model saw: fresh input plus cached tokens.
+ */
+export function usageFromResult(
+  msg: unknown
+): { contextTokens: number; contextWindow: number } | null {
+  const result = msg as {
+    modelUsage?: Record<
+      string,
+      {
+        inputTokens?: number;
+        cacheReadInputTokens?: number;
+        cacheCreationInputTokens?: number;
+        contextWindow?: number;
+      }
+    >;
+    usage?: {
+      input_tokens?: number;
+      cache_read_input_tokens?: number;
+      cache_creation_input_tokens?: number;
+    };
+  };
+
+  const entries = result.modelUsage ? Object.values(result.modelUsage) : [];
+  if (entries.length > 0) {
+    // Pick the primary model (largest prompt) - subagents may add extra entries.
+    let best: (typeof entries)[number] | null = null;
+    let bestTokens = -1;
+    for (const entry of entries) {
+      const tokens =
+        (entry.inputTokens ?? 0) +
+        (entry.cacheReadInputTokens ?? 0) +
+        (entry.cacheCreationInputTokens ?? 0);
+      if (tokens > bestTokens) {
+        bestTokens = tokens;
+        best = entry;
+      }
+    }
+    if (best && best.contextWindow) {
+      return { contextTokens: Math.max(0, bestTokens), contextWindow: best.contextWindow };
+    }
+  }
+
+  const usage = result.usage;
+  if (usage) {
+    const contextTokens =
+      (usage.input_tokens ?? 0) +
+      (usage.cache_read_input_tokens ?? 0) +
+      (usage.cache_creation_input_tokens ?? 0);
+    // Context window unknown from the aggregate usage; 0 signals "use fallback".
+    return { contextTokens: Math.max(0, contextTokens), contextWindow: 0 };
+  }
+
+  return null;
+}
+
 interface BlockLike {
   type?: string;
   text?: string;
@@ -138,9 +212,20 @@ export class ClaudeCodeEventMapper {
         return [];
 
       case "result": {
-        if (msg.subtype === "success") return [];
+        const usage = usageFromResult(msg);
+        const usageEvents: AgentStreamEvent[] = usage
+          ? [
+              {
+                type: "usage",
+                contextTokens: usage.contextTokens,
+                contextWindow: usage.contextWindow,
+              },
+            ]
+          : [];
+        if (msg.subtype === "success") return usageEvents;
         if (msg.subtype === "error_max_turns") {
           return [
+            ...usageEvents,
             {
               type: "text",
               text: "\n⚠ Stopped after reaching the maximum number of turns.",

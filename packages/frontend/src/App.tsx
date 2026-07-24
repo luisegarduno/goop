@@ -4,6 +4,7 @@ import { InputBox } from "./components/InputBox";
 import { SetupModal } from "./components/SetupModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { SessionSwitcher } from "./components/SessionSwitcher";
+import { ContextUsageIndicator } from "./components/ContextUsageIndicator";
 import { useSessionStore } from "./stores/session";
 import { getSession, getMessages, updateSession, API_BASE } from "./api/client";
 import "./styles/index.css";
@@ -211,6 +212,10 @@ function App() {
       {/* Navigation Buttons - Top Right Corner */}
       {sessionId && (
         <div className="absolute top-4 right-4 z-40 flex gap-2">
+          {/* Context window usage — Anthropic-based providers */}
+          {(provider === "anthropic" || provider === "claude-code") && (
+            <ContextUsageIndicator />
+          )}
           {/* New Session Button */}
           <button
             onClick={() => {

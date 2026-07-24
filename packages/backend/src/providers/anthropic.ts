@@ -26,12 +26,39 @@ const MODEL_MAX_TOKENS: Record<string, number> = {
   "claude-sonnet-4-5": 64000,
 };
 
+// Total context window (input) per model, used by the context-usage indicator.
+// Values from the Claude model catalog; unmapped models fall back to 200K.
+const DEFAULT_CONTEXT_WINDOW = 200_000;
+export const CONTEXT_WINDOWS: Record<string, number> = {
+  "claude-opus-4-8": 1_000_000,
+  "claude-opus-4-7": 1_000_000,
+  "claude-opus-4-6": 1_000_000,
+  "claude-sonnet-5": 1_000_000,
+  "claude-sonnet-4-6": 1_000_000,
+  "claude-sonnet-4-5": 1_000_000,
+  "claude-haiku-4-5": 200_000,
+  "claude-opus-4-5": 200_000,
+};
+
+/** Total context window (input tokens) for a model, defaulting to 200K. */
+export function getContextWindow(model: string): number {
+  return CONTEXT_WINDOWS[model] ?? DEFAULT_CONTEXT_WINDOW;
+}
+
 export class AnthropicProvider implements Provider {
   name = "anthropic";
   private client: Anthropic;
   private model: string;
+  /** Total context window (input tokens) for the configured model. */
+  readonly contextWindow: number;
 
-  constructor(model: string = "claude-opus-4-8", apiKey?: string) {
+  constructor(
+    model: string = "claude-opus-4-8",
+    apiKey?: string,
+    // Optional injected client, primarily for tests. When omitted a real
+    // Anthropic client is constructed from the API key.
+    client?: Anthropic
+  ) {
     // Validate model is in allowed list
     if (!ANTHROPIC_MODELS.includes(model as any)) {
       throw new Error(
@@ -39,26 +66,66 @@ export class AnthropicProvider implements Provider {
       );
     }
 
-    // Use provided API key or fall back to environment variable
-    const key = apiKey || process.env.ANTHROPIC_API_KEY;
-    if (!key) {
-      throw new Error("ANTHROPIC_API_KEY is required");
+    if (client) {
+      this.client = client;
+    } else {
+      // Use provided API key or fall back to environment variable
+      const key = apiKey || process.env.ANTHROPIC_API_KEY;
+      if (!key) {
+        throw new Error("ANTHROPIC_API_KEY is required");
+      }
+      this.client = new Anthropic({
+        apiKey: key,
+      });
     }
-    this.client = new Anthropic({
-      apiKey: key,
-    });
     this.model = model;
+    this.contextWindow = getContextWindow(model);
+  }
+
+  /** The model this provider is configured to use. */
+  getModel(): string {
+    return this.model;
+  }
+
+  /** Map goop tool definitions to the Anthropic tool wire format. */
+  private toAnthropicTools(tools: ToolDefinition[]) {
+    return tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      input_schema: zodToJsonSchema(tool.input_schema) as any,
+    }));
+  }
+
+  /**
+   * Count the input tokens that a request with these messages, tools, and
+   * (optional) system prompt would consume. Wraps the SDK's free
+   * `messages.countTokens` endpoint. Returns `input_tokens`.
+   */
+  async countTokens(
+    messages: ProviderMessage[],
+    tools: ToolDefinition[] = [],
+    system?: string
+  ): Promise<number> {
+    const request: any = {
+      model: this.model,
+      messages: messages as any,
+    };
+    if (tools.length > 0) {
+      request.tools = this.toAnthropicTools(tools) as any;
+    }
+    if (system && system.length > 0) {
+      request.system = system;
+    }
+
+    const result = await this.client.messages.countTokens(request);
+    return result.input_tokens;
   }
 
   async *stream(
     messages: ProviderMessage[],
     tools: ToolDefinition[]
   ): AsyncGenerator<StreamEvent> {
-    const anthropicTools = tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      input_schema: zodToJsonSchema(tool.input_schema) as any,
-    }));
+    const anthropicTools = this.toAnthropicTools(tools);
 
     try {
       // Get max tokens for this model, default to 8192 if not found

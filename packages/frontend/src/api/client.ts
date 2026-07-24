@@ -117,6 +117,39 @@ export async function getProviderStatus(
   return res.json();
 }
 
+export interface ContextUsageCategory {
+  label: string;
+  tokens: number;
+  /** Fraction of the context window (0..1). */
+  percent: number;
+}
+
+export interface ContextUsageResponse {
+  /** False for providers where goop can't itemize usage (non-anthropic). */
+  supported: boolean;
+  reason?: string;
+  model?: string;
+  contextWindow?: number;
+  totalTokens?: number;
+  /** Fraction of the context window used (0..1). */
+  usedPercent?: number;
+  categories?: ContextUsageCategory[];
+}
+
+/**
+ * Fetch the context-window usage breakdown for a session. Returns
+ * { supported: false } for providers that can't be itemized (non-anthropic).
+ */
+export async function getContextUsage(
+  sessionId: string
+): Promise<ContextUsageResponse> {
+  const res = await fetch(`${API_BASE}/sessions/${sessionId}/context`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch context usage: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function getAllSessions(): Promise<SessionInfo[]> {
   const res = await fetch(`${API_BASE}/sessions`);
   if (!res.ok) {

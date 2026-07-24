@@ -5,6 +5,7 @@ import {
   getSession,
   getAllSessions,
   getMessages,
+  getContextUsage,
 } from "./client";
 import { createMockFetch } from "../../test/helpers";
 
@@ -222,5 +223,64 @@ describe("API Client - Message Operations", () => {
       type: "tool_result",
       result: "Result data",
     });
+  });
+});
+
+describe("API Client - Context Usage", () => {
+  test("getContextUsage returns the breakdown for anthropic sessions", async () => {
+    const mockResponse = {
+      supported: true,
+      model: "claude-opus-4-8",
+      contextWindow: 1_000_000,
+      totalTokens: 56_700,
+      usedPercent: 0.0567,
+      categories: [
+        { label: "System prompt", tokens: 0, percent: 0 },
+        { label: "Tools", tokens: 16_500, percent: 0.0165 },
+        { label: "Messages", tokens: 40_200, percent: 0.0402 },
+        { label: "Free space", tokens: 943_300, percent: 0.9433 },
+      ],
+    };
+
+    global.fetch = createMockFetch({
+      "GET http://localhost:3001/api/sessions/s1/context": {
+        data: mockResponse,
+      },
+    }) as typeof global.fetch;
+
+    const result = await getContextUsage("s1");
+
+    expect(result.supported).toBe(true);
+    expect(result.totalTokens).toBe(56_700);
+    expect(result.categories).toHaveLength(4);
+    expect(result.categories?.[2]).toMatchObject({
+      label: "Messages",
+      tokens: 40_200,
+    });
+  });
+
+  test("getContextUsage reports supported:false for non-anthropic sessions", async () => {
+    global.fetch = createMockFetch({
+      "GET http://localhost:3001/api/sessions/s2/context": {
+        data: { supported: false },
+      },
+    }) as typeof global.fetch;
+
+    const result = await getContextUsage("s2");
+    expect(result.supported).toBe(false);
+  });
+
+  test("getContextUsage throws on a non-ok response", async () => {
+    global.fetch = createMockFetch({
+      "GET http://localhost:3001/api/sessions/s3/context": {
+        ok: false,
+        status: 500,
+        data: { error: "boom" },
+      },
+    }) as typeof global.fetch;
+
+    await expect(getContextUsage("s3")).rejects.toThrow(
+      "Failed to fetch context usage: 500"
+    );
   });
 });

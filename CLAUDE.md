@@ -208,6 +208,7 @@ before `message.done`.
 - `PATCH /api/sessions/:id` - Update settings
 - `DELETE /api/sessions/:id` - Delete session
 - `GET /api/sessions/:id/messages` - Load message history
+- `GET /api/sessions/:id/context` - Context-window usage breakdown (itemized System prompt/Tools/Messages/Free space via the Anthropic SDK `countTokens` endpoint). Returns `{ supported: false }` for non-`anthropic` providers.
 
 **Streaming:**
 - `POST /api/sessions/:id/messages` - Send message & stream response (SSE)

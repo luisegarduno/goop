@@ -62,9 +62,14 @@ beforeEach(async () => {
       ],
       AnthropicProvider: class MockAnthropicProvider {
         name = "anthropic";
+        contextWindow = 1_000_000;
         constructor(model: string, apiKey?: string) {}
         async *stream() {
           yield { type: "text", text: "Mock Anthropic response" };
+        }
+        async countTokens(messages: any[], tools: any[] = [], system?: string) {
+          // Deterministic: base 100 for messages, +30 when tools present.
+          return tools && tools.length > 0 ? 130 : 100;
         }
       },
     };
@@ -119,6 +124,10 @@ beforeEach(async () => {
           yield { type: "message.done", messageId: "mock-message-id" };
         }
       },
+      // Non-empty history so the context endpoint exercises token counting.
+      loadSessionHistory: async () => [
+        { role: "user", content: [{ type: "text", text: "hi" }] },
+      ],
     };
   });
 
@@ -880,5 +889,96 @@ describe("Message Endpoints", () => {
     });
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe("Context Usage Endpoint", () => {
+  test("GET /sessions/:id/context - returns itemized breakdown for anthropic", async () => {
+    const session = await createTestSession(db, {
+      provider: "anthropic",
+      model: "claude-opus-4-8",
+    });
+
+    const res = await app.request(`/api/sessions/${session.id}/context`);
+    expect(res.status).toBe(200);
+
+    const data = (await res.json()) as any;
+    expect(data.supported).toBe(true);
+    expect(data.model).toBe("claude-opus-4-8");
+    expect(data.contextWindow).toBe(1_000_000);
+    // count(messages)=100, count(messages+tools)=130 (from the mock)
+    expect(data.totalTokens).toBe(130);
+
+    const labels = data.categories.map((c: any) => c.label);
+    expect(labels).toEqual([
+      "System prompt",
+      "Tools",
+      "Messages",
+      "Free space",
+    ]);
+
+    const byLabel = Object.fromEntries(
+      data.categories.map((c: any) => [c.label, c.tokens])
+    );
+    expect(byLabel["Messages"]).toBe(100);
+    expect(byLabel["Tools"]).toBe(30);
+    expect(byLabel["Free space"]).toBe(1_000_000 - 130);
+  });
+
+  test("GET /sessions/:id/context - returns Used/Free total for claude-code from persisted usage", async () => {
+    const session = await createTestSession(db, {
+      provider: "claude-code",
+      model: "sonnet",
+      agentContextTokens: 250_000,
+      agentContextWindow: 1_000_000,
+    });
+
+    const res = await app.request(`/api/sessions/${session.id}/context`);
+    expect(res.status).toBe(200);
+
+    const data = (await res.json()) as any;
+    expect(data.supported).toBe(true);
+    expect(data.contextWindow).toBe(1_000_000);
+    expect(data.totalTokens).toBe(250_000);
+    expect(data.categories.map((c: any) => c.label)).toEqual([
+      "Used",
+      "Free space",
+    ]);
+  });
+
+  test("GET /sessions/:id/context - claude-code before any turn reports 0 used with fallback window", async () => {
+    const session = await createTestSession(db, {
+      provider: "claude-code",
+      model: "opus",
+    });
+
+    const res = await app.request(`/api/sessions/${session.id}/context`);
+    expect(res.status).toBe(200);
+
+    const data = (await res.json()) as any;
+    expect(data.supported).toBe(true);
+    expect(data.totalTokens).toBe(0);
+    // Fallback alias window (opus -> 1M) before the runtime reports a real one.
+    expect(data.contextWindow).toBe(1_000_000);
+  });
+
+  test("GET /sessions/:id/context - returns supported:false for non-anthropic", async () => {
+    const session = await createTestSession(db, {
+      provider: "openai",
+      model: "gpt-4o",
+    });
+
+    const res = await app.request(`/api/sessions/${session.id}/context`);
+    expect(res.status).toBe(200);
+
+    const data = (await res.json()) as any;
+    expect(data.supported).toBe(false);
+  });
+
+  test("GET /sessions/:id/context - returns 404 for nonexistent session", async () => {
+    const res = await app.request(
+      "/api/sessions/00000000-0000-0000-0000-000000000000/context"
+    );
+    expect(res.status).toBe(404);
   });
 });
