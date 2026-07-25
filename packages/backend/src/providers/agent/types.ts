@@ -18,7 +18,11 @@ export type AgentStreamEvent =
       name: string;
       input: Record<string, unknown>;
     }
-  | { type: "tool_result"; toolUseId: string; result: string; isError?: boolean };
+  | { type: "tool_result"; toolUseId: string; result: string; isError?: boolean }
+  // Context usage reported by the runtime at the end of a turn. goop persists
+  // this so the context-window indicator can render (agent runtimes count
+  // tokens themselves; goop can't itemize their context).
+  | { type: "usage"; contextTokens: number; contextWindow: number };
 
 export interface AgentTurnOptions {
   /** The new user message for this turn. */

@@ -331,6 +331,18 @@ export class SessionManager {
             .set({ agentSessionId })
             .where(eq(sessions.id, sessionId));
         }
+      } else if (event.type === "usage") {
+        // Runtime-reported context usage for this turn; persist so the
+        // context-window indicator can render between turns.
+        await db
+          .update(sessions)
+          .set({
+            agentContextTokens: event.contextTokens,
+            ...(event.contextWindow > 0
+              ? { agentContextWindow: event.contextWindow }
+              : {}),
+          })
+          .where(eq(sessions.id, sessionId));
       } else if (event.type === "text") {
         accumulatedText += event.text;
         yield { type: "message.delta", text: event.text };
@@ -404,45 +416,56 @@ export class SessionManager {
   }
 
   private async loadHistory(sessionId: string): Promise<ProviderMessage[]> {
-    const sessionMessages = await db.query.messages.findMany({
-      where: eq(messages.sessionId, sessionId),
-      with: {
-        parts: {
-          orderBy: [asc(messageParts.order)],
-        },
-      },
-      orderBy: [asc(messages.createdAt)],
-    });
-
-    return sessionMessages.map((msg) => ({
-      role: msg.role as "user" | "assistant",
-      content: msg.parts.map((part: any) => {
-        const content = part.content as any;
-
-        // Reconstruct the proper format based on part type
-        if (part.type === "text") {
-          return {
-            type: "text" as const,
-            text: content.text,
-          };
-        } else if (part.type === "tool_use") {
-          return {
-            type: "tool_use" as const,
-            id: content.id,
-            name: content.name,
-            input: content.input,
-          };
-        } else if (part.type === "tool_result") {
-          return {
-            type: "tool_result" as const,
-            tool_use_id: content.tool_use_id,
-            content: content.content,
-          };
-        }
-
-        // Fallback (shouldn't happen)
-        return content;
-      }),
-    }));
+    return loadSessionHistory(sessionId);
   }
+}
+
+/**
+ * Rebuild a session's conversation history as provider messages. Shared by the
+ * session manager and the context-usage endpoint so both see the exact same
+ * message reconstruction.
+ */
+export async function loadSessionHistory(
+  sessionId: string
+): Promise<ProviderMessage[]> {
+  const sessionMessages = await db.query.messages.findMany({
+    where: eq(messages.sessionId, sessionId),
+    with: {
+      parts: {
+        orderBy: [asc(messageParts.order)],
+      },
+    },
+    orderBy: [asc(messages.createdAt)],
+  });
+
+  return sessionMessages.map((msg) => ({
+    role: msg.role as "user" | "assistant",
+    content: msg.parts.map((part: any) => {
+      const content = part.content as any;
+
+      // Reconstruct the proper format based on part type
+      if (part.type === "text") {
+        return {
+          type: "text" as const,
+          text: content.text,
+        };
+      } else if (part.type === "tool_use") {
+        return {
+          type: "tool_use" as const,
+          id: content.id,
+          name: content.name,
+          input: content.input,
+        };
+      } else if (part.type === "tool_result") {
+        return {
+          type: "tool_result" as const,
+          tool_use_id: content.tool_use_id,
+          content: content.content,
+        };
+      }
+
+      // Fallback (shouldn't happen)
+      return content;
+    }),
+  }));
 }

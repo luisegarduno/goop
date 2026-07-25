@@ -18,6 +18,12 @@ export const sessions = pgTable("sessions", {
   // Codex thread id). Used to resume subscription-backed sessions; null for
   // API-key providers and for sessions that haven't run a turn yet.
   agentSessionId: text("agent_session_id"),
+  // Last-turn context usage reported by an agent runtime (Claude Code /
+  // Codex). Agent providers run their own tool loop, so goop can't count
+  // tokens itself - it persists what the runtime reports so the context-usage
+  // indicator can render between turns. Null until a turn has run.
+  agentContextTokens: integer("agent_context_tokens"),
+  agentContextWindow: integer("agent_context_window"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

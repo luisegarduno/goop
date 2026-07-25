@@ -1,5 +1,9 @@
 import { describe, test, expect } from "bun:test";
-import { ClaudeCodeEventMapper } from "./claude-code";
+import {
+  ClaudeCodeEventMapper,
+  usageFromResult,
+  getClaudeCodeContextWindow,
+} from "./claude-code";
 
 function initMessage(sessionId = "session-1") {
   return {
@@ -134,10 +138,102 @@ describe("ClaudeCodeEventMapper", () => {
     expect(events[0]).toMatchObject({ type: "text" });
   });
 
-  test("success results emit nothing (text already streamed)", () => {
+  test("success results emit a usage event from modelUsage", () => {
+    const mapper = new ClaudeCodeEventMapper();
+    const events = mapper.handle({
+      type: "result",
+      subtype: "success",
+      result: "Hello",
+      modelUsage: {
+        "claude-sonnet-4-6": {
+          inputTokens: 1000,
+          cacheReadInputTokens: 4000,
+          cacheCreationInputTokens: 500,
+          contextWindow: 1_000_000,
+        },
+      },
+    } as any);
+    expect(events).toEqual([
+      { type: "usage", contextTokens: 5500, contextWindow: 1_000_000 },
+    ]);
+  });
+
+  test("success results without usage emit nothing", () => {
     const mapper = new ClaudeCodeEventMapper();
     expect(
       mapper.handle({ type: "result", subtype: "success", result: "Hello" } as any)
     ).toEqual([]);
+  });
+
+  test("max-turns result emits usage before the warning", () => {
+    const mapper = new ClaudeCodeEventMapper();
+    const events = mapper.handle({
+      type: "result",
+      subtype: "error_max_turns",
+      errors: [],
+      modelUsage: {
+        opus: {
+          inputTokens: 200,
+          cacheReadInputTokens: 0,
+          cacheCreationInputTokens: 0,
+          contextWindow: 1_000_000,
+        },
+      },
+    } as any);
+    expect(events[0]).toEqual({
+      type: "usage",
+      contextTokens: 200,
+      contextWindow: 1_000_000,
+    });
+    expect(events[1]).toMatchObject({ type: "text" });
+  });
+});
+
+describe("usageFromResult", () => {
+  test("picks the primary (largest-prompt) model and its context window", () => {
+    const usage = usageFromResult({
+      modelUsage: {
+        // Subagent with a small prompt.
+        haiku: {
+          inputTokens: 10,
+          cacheReadInputTokens: 0,
+          cacheCreationInputTokens: 0,
+          contextWindow: 200_000,
+        },
+        // Primary model with the larger prompt.
+        opus: {
+          inputTokens: 1000,
+          cacheReadInputTokens: 2000,
+          cacheCreationInputTokens: 0,
+          contextWindow: 1_000_000,
+        },
+      },
+    });
+    expect(usage).toEqual({ contextTokens: 3000, contextWindow: 1_000_000 });
+  });
+
+  test("falls back to aggregate usage with a 0 window when modelUsage is absent", () => {
+    const usage = usageFromResult({
+      usage: {
+        input_tokens: 100,
+        cache_read_input_tokens: 50,
+        cache_creation_input_tokens: 25,
+      },
+    });
+    expect(usage).toEqual({ contextTokens: 175, contextWindow: 0 });
+  });
+
+  test("returns null when no usage information is present", () => {
+    expect(usageFromResult({})).toBeNull();
+  });
+});
+
+describe("getClaudeCodeContextWindow", () => {
+  test("maps aliases to windows and defaults unknown/empty to 200K", () => {
+    expect(getClaudeCodeContextWindow("sonnet")).toBe(1_000_000);
+    expect(getClaudeCodeContextWindow("opus")).toBe(1_000_000);
+    expect(getClaudeCodeContextWindow("haiku")).toBe(200_000);
+    expect(getClaudeCodeContextWindow("default")).toBe(200_000);
+    expect(getClaudeCodeContextWindow(null)).toBe(200_000);
   });
 });

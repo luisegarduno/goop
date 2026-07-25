@@ -452,6 +452,84 @@ apiRoutes.get("/sessions/:id/messages", async (c) => {
   return c.json(sessionMessages);
 });
 
+// Context-window usage for a session.
+// Only supported for the API-key `anthropic` provider, where goop runs the tool
+// loop and can count tokens for exactly what would be sent. Other providers
+// return { supported: false } so the frontend can hide the indicator.
+apiRoutes.get("/sessions/:id/context", async (c) => {
+  const sessionId = c.req.param("id");
+
+  const session = await db.query.sessions.findFirst({
+    where: eq(sessions.id, sessionId),
+  });
+
+  if (!session) {
+    return c.json({ error: "Session not found" }, 404);
+  }
+
+  // Claude Code (subscription) runs its own tool loop, so goop can't itemize
+  // its context. Instead it surfaces the coarse Used/Free total that the Agent
+  // SDK reported at the end of the last turn (persisted on the session).
+  if (session.provider === "claude-code") {
+    try {
+      const { simpleUsage } = await import("../context/usage");
+      const { getClaudeCodeContextWindow } = await import(
+        "../providers/agent/claude-code"
+      );
+
+      const totalTokens = session.agentContextTokens ?? 0;
+      const contextWindow =
+        session.agentContextWindow ?? getClaudeCodeContextWindow(session.model);
+
+      const usage = simpleUsage({
+        model: session.model,
+        contextWindow,
+        totalTokens,
+      });
+      return c.json({ supported: true, ...usage });
+    } catch (error: any) {
+      console.error("[API] Failed to compute claude-code context usage:", error);
+      return c.json({
+        supported: false,
+        reason: error?.message || "Failed to compute context usage",
+      });
+    }
+  }
+
+  if (session.provider !== "anthropic") {
+    return c.json({ supported: false });
+  }
+
+  try {
+    const { AnthropicProvider } = await import("../providers/anthropic");
+    const { loadSessionHistory } = await import("../session/index");
+    const { computeContextUsage } = await import("../context/usage");
+    const { getToolDefinitions } = await import("../tools/index");
+
+    const provider = new AnthropicProvider(session.model);
+    const history = await loadSessionHistory(sessionId);
+    const tools = getToolDefinitions();
+
+    const usage = await computeContextUsage({
+      model: session.model,
+      contextWindow: provider.contextWindow,
+      system: "",
+      messages: history,
+      tools,
+      count: (args) =>
+        provider.countTokens(args.messages, args.tools, args.system),
+    });
+
+    return c.json({ supported: true, ...usage });
+  } catch (error: any) {
+    console.error("[API] Failed to compute context usage:", error);
+    return c.json({
+      supported: false,
+      reason: error?.message || "Failed to compute context usage",
+    });
+  }
+});
+
 // Create message
 apiRoutes.post("/sessions/:id/messages", async (c) => {
   const sessionId = c.req.param("id");
