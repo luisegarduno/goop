@@ -20,7 +20,7 @@
     "@anthropic-ai/sdk": "^0.113.0",
     "@openai/codex-sdk": "^0.145.0",
     "dotenv": "^17.2.3",
-    "drizzle-orm": "0.44.7",
+    "drizzle-orm": "0.45.2",
     "fast-glob": "^3.3.3",
     "hono": "^4.0.0",
     "openai": "^6.9.1",
